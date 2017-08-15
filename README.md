@@ -1,16 +1,33 @@
 Upgrade Notes
 ==============
 
-A collection of upgrade "scripts" for moving from Drupal 6 and Drupal 7 to
-Backdrop CMS.
+A collection of upgrade "scripts" for moving from Drupal 6 and Drupal 7 to Backdrop CMS. 
 
-Some scripts refer to a custom "Jeneration" module that performs cleanup tasks
-and various updates as needed. Though the cleanup tasks may vary from one site
-to the next, the updates often correlate to one contrib module or another. Most
-of the "Jeneration" module is included here so you can benefit from these
-updates as well.
+Each "script" is a markdown file for a single site, containing notes and Drush commands that should be run in sequence to complete an upgrade to Backdrop CMS.
+
+Almost all scripts have a matching custom module that performs cleanup tasks and various system updates as needed. Though the cleanup tasks may vary from one site to the next, the updates often correlate to one contrib module or another. Most of the custom modules are included here too, in the "code" directory.
+
+## Sites
+
+- onlinembareport.com (Drupal 7 to Backdrop Upgrade)
+	- [Notes](notes/ombar-upgrade.md)
+	- Backdrop 1 .install file
+- bollier.org (Drupal 6 to Backdrop Upgrade)
+	- [Notes](notes/bollier-upgrade.md)
+   - Drupal 6 module
+	- Drupal 7 module
+	- Backdrop 1 module
+- animationcareerreview.com (Drupal 6 to Backdrop Upgrade)
+	- [Notes](notes/ombar-upgrade.md)
+	- Drupal 6 module
+	- Drupal 7 module
+	- Backdrop 1 module
 
 ## In this repository:
 
 - "notes" directory: contains upgrade.md files for each site I upgrade.
 - "code" directory: contains Jeneration module.
+
+## To do
+
+I am fully intending to turn each markdown file into an actual script to be run from the command line. But first things first: documentation!
