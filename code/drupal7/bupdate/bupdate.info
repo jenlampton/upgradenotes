@@ -1,0 +1,6 @@
+type = module
+name = Bollier Updates D7.
+description = Updates to the database to facilitate movintg to Backdrop.
+core = 7.x
+
+package = Bollier

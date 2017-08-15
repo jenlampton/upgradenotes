@@ -1,0 +1,162 @@
+<?php
+/**
+ * @file
+ * Update functions for bollier.org.
+ */
+
+function bupdate_update_last_removed() {
+  return 7001;
+}
+
+/**
+ * Implements hook_update_N: Updates text formats to use Standard.
+ */
+function bupdate_update_1000(&$sandbox) {
+  // Update all body content to use Standard text format instead of PHP.
+  db_query("UPDATE {field_data_body} SET body_format = '1' WHERE body_format = '5'");
+  // Update all body content to use Standard text format instead of Unfiltered.
+  db_query("UPDATE {field_data_body} SET body_format = '1' WHERE body_format = '2'");
+
+  return t("Text format switchted to <em>Standard</em>.");
+}
+
+/**
+ * Implements hook_update_N: Updates all embedded image captions to use data
+ * attributes.
+ */
+function bupdate_update_1001(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 1;
+    // Get the count by counting values in the field table.
+    $sandbox['max'] = db_query("SELECT COUNT(body_value) FROM {field_data_body}")->fetchField();
+  }
+
+  // Get all the values from the body table.
+  $limit = 50;
+  $result  = db_query_range("SELECT body_value, body_summary, entity_id, revision_id, delta FROM {field_data_body} WHERE entity_id > :nid ORDER BY entity_id", 0, $limit, array(':nid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+
+    // Search for embedded images.
+    if (strstr($record->body_value, '<img')) {
+      $body_updated = $record->body_value;
+
+      // Parse the body for image tags.
+      $dom = new DOMDocument('1.0', 'UTF-8');
+      @$dom->loadHTML('<?xml version="1.0" encoding="UTF-8"?>' . $record->body_value);
+
+      $tags = $dom->getElementsByTagName('img');
+      foreach ($tags as $image) {
+
+        // Update images.
+        $title = $image->getAttribute('title');
+        if (!empty($title)) {
+          $image->setAttribute('data-caption', $title);
+        }
+
+        $style = str_replace(' ', '', $image->getAttribute('style'));
+        if (!empty($style) && strstr($style, 'float:right')) {
+          $image->setAttribute('data-align', 'right');
+          //$image->removeAttribute('style');
+        }
+        elseif (!empty($style) && strstr($style, 'float:left')) {
+          $image->setAttribute('data-align', 'left');
+          //$image->removeAttribute('style');
+        }
+      }
+
+      // Export HTML for the body.
+      $body_updated = '';
+      $body = $dom->getElementsByTagName('body')->item(0);
+      foreach ($body->childNodes as $child) {
+        $body_updated .= $dom->saveHTML($child);
+      }
+
+      if ($body_updated != $record->body_value) {
+        // Update database.
+        db_query("UPDATE {field_data_body} SET body_value = :new, body_format = '1' WHERE entity_id = :eid AND revision_id = :rid AND delta = :delta",
+          array(':new' => $body_updated, 'eid' => $record->entity_id, ':rid' => $record->revision_id, ':delta' => $record->delta));
+      }
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->entity_id;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    $ret = t("Image captions updated to data attributes.");
+    return $ret;
+  }
+}
+
+/**
+ * Implements hook_update_N: Splits content at teaserbreak into summaries.
+ */
+function bupdate_update_1002(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 1;
+    // Get the count by counting values in the field table.
+    $sandbox['max'] = db_query("SELECT COUNT(DISTINCT entity_id) FROM {field_data_body}")->fetchField();
+    // SELECT COUNT(DISTINCT entity_id) FROM node n INNER JOIN field_data_body b ON n.entity_id = b.entity_id
+  }
+
+  // Only update 100 nodes at a time.
+  $limit = 50;
+  $result = db_query_range("SELECT DISTINCT entity_id FROM {field_data_body} b WHERE entity_id > :entity_id ORDER BY entity_id", 0, $limit, array(':entity_id' => $sandbox['last_processed']));
+  // SELECT DISTINCT entity_id FROM node n INNER JOIN field_data_body b ON n.entity_id = b.entity_id ORDER BY entity_id LIMIT 50;
+
+  foreach ($result as $record) {
+    // Loade the current node.
+    $node = node_load($record->entity_id);
+    $lang = $node->langcode;
+    $save = FALSE;
+
+    // See if the node has a teaserbreak.
+    foreach ($node->body[$lang] as $delta => $value) {
+      if (strstr($value['value'], '<!--break-->')) {
+        $parts = explode('<!--break-->', $value['value']);
+        if (count($parts) > 1) {
+          // Update the new summary field.
+          $node->field_summary[$lang][$delta]['value'] = $parts[0];
+          $node->field_summary[$lang][$delta]['format'] = $node->body[$lang][$delta]['format'];
+          // Update the body field. Removed the teaser.
+          $node->body[$lang][$delta]['value'] = $parts[1];
+          // Mark this node as needing to be saved.
+          $save = TRUE;
+        }
+        else {
+          // Update the body field. Removed the teaser splitter.
+          $node->body[$lang][$delta]['value'] = str_replace('<!--break-->', '', $value['value']);
+          // Mark this node as needing to be saved.
+          $save = TRUE;
+        }
+      }
+    }
+
+    if ($save) {
+      node_save($node);
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $node->nid;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    $ret = t("Teaser break updated to summaries.");
+    return $ret;
+  }
+}

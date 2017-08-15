@@ -1,0 +1,136 @@
+<?php
+/**
+ * @file
+ * Update functions for bollier.org.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function bupdate_enable() {
+  // Set an initial value for the schema version so we can run updates after install.
+  drupal_set_installed_schema_version('bupdate', 6000);
+}
+
+/**
+ * Implements hook_install().
+ */
+function bupdate_install() {
+  // Remove old unused modules and themes from system table
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'admin'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'content_copy'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'migrate'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'migrate_extras'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'migrate_ui'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'schema'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'tw'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'tw_import_delimited'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'zenophile'");
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'zenophile_sidebars'");
+
+  drupal_set_message('Old unused modules and themes removed from system table.');
+}
+
+/**
+ * Implements hook_update_N: Updates all book_type fields on book nodes.
+ */
+function bupdate_update_6001(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'book'"));
+  }
+
+  $limit = 50; // Update 50 nodes at a time.
+  $result = db_query_range("SELECT nid FROM {node} WHERE type = 'book' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($nid = db_result($result)) {
+    // Load the node
+    $node = node_load($nid);
+
+    // Set book type default value to mine.
+    $node->field_book_type[0]['value'] = 'my-books';
+
+    // Save the node.
+    node_save($node);
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $node->nid;
+  }
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+  return $ret;
+}
+
+
+/**
+ * Implements hook_update_N: Updates all books_like nodes to be Books, with book_type set.
+ */
+function bupdate_update_6002(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'book_like'"));
+  }
+
+  $limit = 25; // Update 25 nodes at a time.
+  $result = db_query_range("SELECT nid FROM {node} WHERE type = 'book_like' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($nid = db_result($result)) {
+    // Change the type to book.
+    $ret[] = update_sql("UPDATE {node} SET type = 'book' WHERE nid = $nid");
+    // Load the node
+    $node = node_load($nid);
+    // Set book type default value to mine.
+    $node->field_book_type[0]['value'] = 'books-i-like';
+    // Save the node.
+    node_save($node);
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $node->nid;
+  }
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+  return $ret;
+}
+
+/**
+ * Implements hook_update_N: Moves data from ImageLinkField to Link.
+ */
+function bupdate_update_6003(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {content_field_book_cover}"));
+  }
+
+  $limit = 30; // Update 30 nodes at a time.
+  $result = db_query_range("SELECT nid FROM {content_field_book_cover} WHERE nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($nid = db_result($result)) {
+    // Load the node
+    $node = node_load($nid);
+
+    // Copy the link data into the link field.
+    if (!empty($node->field_book_cover[0]['data'])) {
+      $data = $node->field_book_cover[0]['data'];
+      if (empty($node->field_book_link)) {
+        $node->field_book_link[0] = array();
+      }
+      $node->field_book_link[0]['url'] = $data['url'];
+      $node->field_book_link[0]['title'] = $data['title'];
+
+      // Save the node.
+      node_save($node);
+    }
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $node->nid;
+  }
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+  return $ret;
+}

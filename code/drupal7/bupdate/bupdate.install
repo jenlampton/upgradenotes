@@ -1,0 +1,25 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Implements hook_update_N: Updates field formatters so content_upgrade can work. Removes modules not inuse from system table.
+ */
+function bupdate_update_7001(&$sandbox) {
+  // Update field formatters so content_upgrade can work.
+  db_query("UPDATE {content_node_field_instance} SET widget_type = 'filefield_widget', widget_module = 'filefield' WHERE field_name = 'field_podcast'");
+  db_query("UPDATE {content_node_field_instance} SET widget_type = 'imagefield_widget', widget_module = 'imagefield' WHERE field_name = 'field_book_cover'");
+
+  // Remove modules no longer inuse from system table.
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'content'"); // Drupal 6
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'date_timezone'"); // Drupal 5
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'filefield'"); // Drupal 6
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'imagefield'"); // Drupal 6
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'image_caption'"); // Drupal 6
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'linkimagefield'"); // Drupal 6
+  db_query("DELETE FROM {system} WHERE type = 'module' AND name = 'optionwidgets'"); // Drupal 6
+
+  $ret = t("Field widgets updated. Old modules uninstalled.");
+}
