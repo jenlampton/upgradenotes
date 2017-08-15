@@ -25,8 +25,8 @@ Almost all scripts have a matching custom module that performs cleanup tasks and
 
 ## In this repository:
 
-- "notes" directory: contains upgrade.md files for each site I upgrade.
-- "code" directory: contains Jeneration module.
+- "notes" directory: contains detailed notes on the upgrade process.
+- "code" directory: contains custom module used to run updates.
 
 ## To do
 
