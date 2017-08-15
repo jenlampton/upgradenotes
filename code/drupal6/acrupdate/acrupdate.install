@@ -1,0 +1,180 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function acrupdate_enable() {
+  // Set an initial value for the schema version so we can run updates after install.
+  drupal_set_installed_schema_version('acrupdate', 6000);
+}
+
+/**
+ * Implements hook_install().
+ */
+function acrupdate_install() {
+  drupal_set_message('Old unused modules and themes will be removed from the system; run update next.');
+}
+
+/**
+ * Implements hook_update_N: Copies Ad content into text area.
+ */
+function acrupdate_update_6001(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'ad'"));
+  }
+
+  $limit = 30; // Update 30 nodes at a time.
+  $result = db_query_range("SELECT nid FROM {node} WHERE type = 'ad' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($nid = db_result($result)) {
+    // Load the node
+    $node = node_load($nid);
+
+    // Copy the Ad data into the new text field.
+    if (property_exists($node, 'adtype')) {
+      $node->field_ad_text['0']['value'] = $node->ad;
+      $node->field_ad_text['0']['format'] = '2';
+    }
+    // Save the node.
+    node_save($node);
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $node->nid;
+  }
+
+  // Delete the Ad vocabulary and terms.
+  $result = db_query_range("SELECT tid FROM {term_data} WHERE vid = '4' ORDER BY tid ASC");
+  while ($tid = db_result($result)) {
+    $term = taxonomy_term_load($tid);
+    $term->delete();
+  }
+
+  // Delete ad vocabulary.
+  taxonomy_del_vocabulary('4');
+
+  // Convert ad content type to node module.
+  db_query("UPDATE {node_type} SET module = 'node', custom = 1, locked = 0 WHERE type = 'ad'");
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+  return $ret;
+}
+
+/**
+ * Disable and uninstall old modules, disable caching, delete old blocks, prepare for upgrade.
+ */
+function acrupdate_update_6002() {
+  $modules = array(
+    'acr',
+    'acr_promos',
+    'ad',
+    'ad_embed',
+    'ad_html',
+    'ad_statistics_kill',
+    'better_formats',
+    'betterselect',
+    'captcha',
+    'caption_filter',
+    'checkbox_validate',
+    'comment',
+    'color',
+    'content_copy',
+    'content_profile_registration',
+    'content_profile',
+    'cookie_cache_bypass',
+    'custom_breadcrumbs',
+    'devel_generate',
+    'devel',
+    'extlink',
+    'favorite_services',
+    'forward_services',
+    'forward',
+    'general_services',
+    'globalredirect',
+    'help',
+    'hint',
+    'image_resize_filter',
+    'imageapi_gd',
+    'imageapi',
+    'imagecache_canvasactions',
+    'imagecache_ui',
+    'imagecache',
+    'imageapi_imagemagick',
+    'insert',
+    'jen_links',
+    'jen_panels',
+    'jen_schools',
+    'jen_search',
+    'jen_views',
+    'jen_wysiwyg',
+    'jquery_ui',
+    'jquery_update',
+    'logintoboggan',
+    'memcache',
+    'memcache_admin',
+    'mollom',
+    'nice_menus',
+    'options_element',
+    'page_manager',
+    'panels_ipe',
+    'panels_mini',
+    'panels',
+    'pantheon_api',
+    'pantheon_login',
+    'path_redirect',
+    'quicktabs',
+    'quinstreet',
+    'recaptcha',
+    'service_links',
+    'services',
+    'site_verify',
+    'str_promos',
+    'tagadelic',
+    'statistics',
+    'str_promos',
+    'str_views',
+    'vantage',
+    'varnish',
+    'vertical_tabs',
+    'widget_services',
+    'wysiwyg_filter',
+    'wysiwyg',
+    'bluemarine',
+    'chameleon',
+    'marvin',
+    'minnelli',
+    'pushbutton',
+    'zen',
+    'views_slideshow_singleframe',
+    'views_bulk_operations',
+    'views_slideshow',
+  );
+  module_disable($modules);
+  foreach ($modules as $module) {
+    drupal_uninstall_module($module);
+    // Clean up the blocks table.
+    db_query("DELETE from {blocks} WHERE module = $module");
+  }
+
+  // Clean up the blocks table some more.
+  db_query("DELETE from {blocks} WHERE module = 'block' AND delta = 3"); // Scholarship
+  db_query("DELETE from {blocks} WHERE module = 'block' AND delta = 4"); // Leaderboard AI
+  db_query("DELETE from {blocks} WHERE module = 'block' AND delta = 7"); // Leaderboard FS
+
+  drupal_set_message('Theme and cache configuration');
+  module_enable('garland');
+  variable_set('theme_default', 'garland');
+  variable_set('cache', 0);
+  variable_set('block_cache', 0);
+  variable_set('preprocess_css', 0);
+  variable_set('preprocess_js', 0);
+
+  drupal_set_message('Changing field_display_programs widget');
+  db_query('UPDATE content_node_field_instance SET widget_type="text_textarea" WHERE field_name = "field_display_programs"');
+}

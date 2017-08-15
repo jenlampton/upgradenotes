@@ -1,0 +1,5 @@
+name = ACR Update - D6
+description = Prepare to upgrade to Drupal 7, then Backdrop CMS.
+package = Jeneration
+core = 6.x
+version = 6.x-1.0

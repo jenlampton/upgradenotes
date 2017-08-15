@@ -1,0 +1,97 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Convert emfield field_emfield to youtube field_youtube.
+ */
+function acrupdate_update_7000(&$sandbox) {
+  module_enable(array('youtube'));
+
+  $entity_type = 'node';
+  $field_name = 'field_youtube';
+  $bundle_name = 'contestant';
+  $field_type = 'youtube';
+
+  $field_instance = field_info_instance($entity_type, $field_name, $bundle_name);
+  if (!$field_instance) {
+    $field = field_create_field(array(
+      'field_name' => $field_name,
+      'type' => $field_type,
+    ));
+
+    $instance = field_create_instance(array(
+      'field_name' => $field_name,
+      'entity_type' => $entity_type,
+      'bundle' => $bundle_name,
+      'label' => 'Video',
+      'required' => TRUE,
+    ));
+  }
+
+  // Get nodes to update.
+  $result = db_query("SELECT nid, field_video_embed, field_video_value FROM {content_type_contestant}");
+  foreach ($result as $record) {
+    $node = node_load($record->nid);
+    $node->field_youtube[LANGUAGE_NONE][0] = array(
+      'input' => $record->field_video_embed,
+      'video_id' => $record->field_video_value,
+    );
+    node_save($node);
+  }
+
+  // Cleanup.
+  //field_delete_field('field_video');
+
+  // Delete the old field info.
+  db_query("DELETE FROM {content_node_field} WHERE field_name = 'field_video'");
+}
+
+/**
+ * Remove orphans. Clean up nodewords. Update theme settings. Webform block.
+ */
+function acrupdate_update_7001(&$sandbox) {
+  // Set webform block setting for contest.
+  db_query("UPDATE {webform} SET block = '1' WHERE nid = 3009");
+
+  // Remove vocab settings from nodewords.
+  db_query("DELETE FROM {nodewords} WHERE type = 9");
+  db_query("DELETE FROM {nodewords} WHERE type = 3");
+
+  module_enable('bartik');
+  variable_set('theme_default', 'bartik');
+  variable_set('admin_theme', 'seven');
+  variable_set('node_admin_theme', 1);
+  db_query("DELETE from {system} WHERE name = 'garland'");
+
+  // Remove orphan modules.
+  $modules = array(
+    'content',
+    'optionwidgets',
+    'date_api',
+    'date_timezone',
+    'emvideo',
+    'filefield',
+    'imagefield',
+  );
+  module_disable($modules);
+  drupal_uninstall_modules($modules);
+
+  // Just to be sure...
+  db_delete('system')
+    ->condition('name', $modules, 'IN')
+    ->condition('type', 'module')
+    ->execute();
+
+}
+
+/**
+ * Replace all [quinstreet] embed codes with [listing], and B with STRONG.
+ */
+function acrupdate_update_7002(&$sandbox) {
+  db_query("UPDATE {field_data_body} SET body_value = REPLACE(body_value, '[quinstreet]', '[listing]')");
+  db_query("UPDATE {field_data_body} SET body_value = REPLACE(body_value, '<b>', '<strong>')");
+  db_query("UPDATE {field_data_body} SET body_value = REPLACE(body_value, '</b>', '</strong>')");
+}
