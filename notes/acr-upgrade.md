@@ -112,6 +112,7 @@ drush7 -y pm-uninstall page_title
 	* Import at admin/config/search/metatags/importer
 	* Check that articles have defined metatags at admin/content
 	* Check that terms have defined metatags at admin/structure/taxonomy/vocabulary_1
+	* @todo make a drush command version of this step for sanity
 
 
 ## Modules
