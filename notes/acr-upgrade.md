@@ -158,13 +158,14 @@ gunzip -c ../../d7.sql.gz | drush sqlc
 
 ## Upgrade
 
-* Make sure that update free access is enabled.
+* Make sure that update free access is enabled in settings.local.php
 
 ```php
 $settings['update_free_access'] = TRUE;
 ```
 
 * Run update.php (171 pending updates)
+  * This update works when run from the UI even if it fails from drush.
 
 ```bash
 drush updb -y
@@ -206,6 +207,7 @@ drush en captcha devel honeypot flexslider multifield recaptcha sharethis -y
   - jeneration
   - flexslider_views
   - metatag_verify
+  - smtp
 
 ```bash
 drush en ckeditor contextual redirect update views_ui bgp_blocks bgp_views bgp_api bgp_quinstreet jeneration -y
