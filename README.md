@@ -7,6 +7,11 @@ Each "script" is a markdown file for a single site, containing notes and Drush c
 
 Almost all scripts have a matching custom module that performs cleanup tasks and various system updates as needed. Though the cleanup tasks may vary from one site to the next, the updates often correlate to one contrib module or another. Most of the custom modules are included here too, in the "code" directory.
 
+## In this repository:
+
+- "notes" directory: contains detailed notes on the upgrade process.
+- "code" directory: contains custom module used to run updates.
+
 ## Sites upgraded to Backdrop
 
 - onlinembareport.com (Drupal 7 to Backdrop Upgrade)
@@ -24,11 +29,6 @@ Almost all scripts have a matching custom module that performs cleanup tasks and
 	- Drupal 6 module
 	- Drupal 7 module
 	- Backdrop 1 module
-
-## In this repository:
-
-- "notes" directory: contains detailed notes on the upgrade process.
-- "code" directory: contains custom module used to run updates.
 
 ## To do
 
