@@ -1,7 +1,7 @@
 Upgrade Notes
 ==============
 
-A collection of upgrade "scripts" for moving from Drupal 6 and Drupal 7 to Backdrop CMS. 
+A collection of upgrade "scripts" for moving from Drupal 6 and Drupal 7 to Backdrop CMS.
 
 Each "script" is a markdown file for a single site, containing notes and Drush commands that should be run in sequence to complete an upgrade to Backdrop CMS.
 
@@ -18,7 +18,7 @@ Almost all scripts have a matching custom module that performs cleanup tasks and
 	- Drupal 7 module
 	- Backdrop 1 module
 - animationcareerreview.com (Drupal 6 to Backdrop Upgrade)
-	- [Notes](notes/ombar-upgrade.md)
+	- [Notes](notes/acr-upgrade.md)
 	- Drupal 6 module
 	- Drupal 7 module
 	- Backdrop 1 module
