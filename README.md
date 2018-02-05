@@ -30,6 +30,13 @@ Almost all scripts have a matching custom module that performs cleanup tasks and
 	- Drupal 7 module
 	- Backdrop 1 module
 
+- arf.berkley.edu (Drupal 6 to Backdrop Upgrade)
+	- [Notes](notes/arf-upgrade.md)
+	- Drupal 6 module
+	- Drupal 7 module
+	- Backdrop 1 module
+
+
 ## To do
 
 I am fully intending to turn each markdown file into an actual script to be run from the command line. But first things first: documentation!
