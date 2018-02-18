@@ -32,7 +32,7 @@ Almost all scripts have a matching custom module that performs cleanup tasks and
 
 - intowine.com (Drupal 6 to Backdrop Upgrade)
 	- Notes? TBD.
-	- Backdrop module
+	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/iw_update)
 
 - arf.berkley.edu (Drupal 6 to Backdrop Upgrade)
 	- [Notes](notes/arf-upgrade.md)

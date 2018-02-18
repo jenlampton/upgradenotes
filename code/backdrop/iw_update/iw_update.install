@@ -1,0 +1,277 @@
+<?php
+/**
+ * @file
+ * Update functions for IntoWine.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function iw_update_enable() {
+  // Set an initial value for the schema version so we can run updates after install.
+  backdrop_set_installed_schema_version('iw_update', 1000);
+}
+
+/**
+ * Implements hook_update_N(). Generic updates: Sets file directory. Fixes metatag laguage. Deletes unused vocabs and terms.
+ */
+function iw_update_update_1001() {
+  // Set the correct files location for Backdrop.
+  config_set('system_core', 'file_public_path', 'files');
+
+  // Update all metatag langcodes.
+  db_query("UPDATE {metatag} SET language = 'und' WHERE language = 'en'");
+
+  // Delete all the terms we don't want anymore.
+  db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'ad_placements'");
+  db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'ad_groups'");
+  db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'newsletter'");
+
+  // Delete the vocabularies.
+  taxonomy_vocabulary_delete('ad_placements');
+  taxonomy_vocabulary_delete('ad_groups');
+  taxonomy_vocabulary_delete('newsletter');
+
+  return t('Metatag language updated. Deleted the old Ad and Newsletter vocabularies and terms.');
+}
+
+/**
+ * Implements hook_update_N(). Moves Food & Wine terms into text field values.
+ */
+function iw_update_update_1002() {
+  // Get field values for all food_wine_pair nodes.
+  $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta, field_fw_pair_food_type_tid FROM {field_data_field_fw_pair_food_type}");
+
+  // Save the new field values.
+  foreach ($result as $record) {
+    $record->field_fw_pair_food_value = $record->field_fw_pair_food_type_tid;
+    unset($record->field_fw_pair_food_type_tid);
+    backdrop_write_record('field_data_field_fw_pair_food', $record);
+  }
+
+  // Delete the old field.
+  field_delete_field('field_fw_pair_food_type');
+
+  // Delete all the old taxonomy terms.
+  db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'food_type'");
+
+  // Delete the vocabulary.
+  taxonomy_vocabulary_delete('food_type');
+
+  return t('Food & Wine terms moved into text field value. Terms and vocabulary deleted.');
+}
+
+/**
+ * Implements hook_update_N(). Moves Winery Feature terms into text field values.
+ */
+function iw_update_update_1003() {
+  // Get field values for all food_wine_pair nodes.
+  $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta, field_winery_features_tid FROM (field_data_field_winery_features)");
+
+  // Map the old term IDs to the new field values.
+  $map = array(
+    2273 => 'appointment_only',
+    2274 => 'events',
+    2275 => 'picnics',
+    2276 => 'tastings',
+    2277 => 'tours',
+  );
+
+  // Save the new field values.
+  foreach ($result as $record) {
+    $record->field_winery_highlights_value = $map[$record->field_winery_features_tid];
+    unset($record->field_winery_features_tid);
+    backdrop_write_record('field_data_field_winery_highlights', $record);
+  }
+
+  // Delete the old field.
+  field_delete_field('field_winery_features');
+
+  // Delete all the old taxonomy terms.
+  db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'winery_features'");
+
+  // Delete the vocabulary.
+  taxonomy_vocabulary_delete('winery_features');
+
+  return t('Winery Feature terms moved into text field value. Terms and vocabulary deleted.');
+}
+
+/**
+ * Implements hook_update_N(). Moves Wine Regions terms into separate vocabulary.
+ */
+function iw_update_update_1004(&$sandbox) {
+  if (!isset($sandbox['tree'])) {
+    $sandbox['tree'] = taxonomy_get_tree('categories', 2046, NULL, TRUE);
+  }
+
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the taxonomy tree.
+    $sandbox['max'] = count($sandbox['tree']);
+  }
+
+  $count = 0;
+  foreach ($sandbox['tree'] as $key => $term) {
+    // Set a limit so we don't exceed batch.
+    if ($count <= 40) {
+      $count++;
+      // Move the term to a new vocabulary.
+      $term->tid = trim($term->tid);
+      $term->vocabulary = 'wine_regions';
+      // Move child terms to root.
+      if ($term->parents == array(0 => 2046)) {
+        // If this was a child of 'Wine Regions' it is now top-level.
+        $term->parent = array(0);
+      }
+      // Save the updated term.
+      $term->save();
+      // remove the term from the tree so updates can proceed.
+      unset($sandbox['tree'][$key]);
+
+      // Update our progress information for the batch update.
+      $sandbox['progress']++;
+      $sandbox['last_processed'] = $key;
+    }
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    return t('Wine Regions terms moved into separate vocabulary');
+  }
+}
+
+/**
+ * Implements hook_update_N(). Moves Varietals terms into separate vocabulary.
+ */
+function iw_update_update_1005(&$sandbox) {
+  if (!isset($sandbox['tree'])) {
+    $sandbox['tree'] = taxonomy_get_tree('categories', 2157, NULL, TRUE);
+  }
+
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the taxonomy tree.
+    $sandbox['max'] = count($sandbox['tree']);
+  }
+
+  $count = 0;
+  foreach ($sandbox['tree'] as $key => $term) {
+    // Set a limit so we don't exceed batch.
+    if ($count <= 40) {
+      $count++;
+      // Move the term to a new vocabulary.
+      $term->tid = trim($term->tid);
+      $term->vocabulary = 'varietals';
+      // Move child terms to root.
+      if ($term->parents == array(0 => 2157)) {
+        // If this was a child of 'Wine Regions' it is now top-level.
+        $term->parent = array(0);
+      }
+      // Save the updated term.
+      $term->save();
+      // remove the term from the tree so updates can proceed.
+      unset($sandbox['tree'][$key]);
+
+      // Update our progress information for the batch update.
+      $sandbox['progress']++;
+      $sandbox['last_processed'] = $key;
+    }
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    return t('Varietals terms moved into separate vocabulary');
+  }
+}
+
+/**
+ * Implements hook_update_N: Updates embedded image captions and alignment to
+ * use data attributes instead.
+ */
+function iw_update_update_1006(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 1;
+    // Get the count by counting values in the field table.
+    $sandbox['max'] = db_query("SELECT COUNT(body_value) FROM {field_data_body}")->fetchField();
+  }
+
+  // Get all the values from the body table.
+  $limit = 100;
+  $result = db_query_range("SELECT body_value, body_summary, entity_id, revision_id, delta FROM {field_data_body} WHERE entity_id > :nid ORDER BY entity_id", 0, $limit, array(':nid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+
+    // Search for embedded images.
+    if (strstr($record->body_value, '<img')) {
+      $body_updated = $record->body_value;
+
+      // Parse the body for image tags.
+      $dom = new DOMDocument('1.0', 'UTF-8');
+      @$dom->loadHTML('<?xml version="1.0" encoding="UTF-8"?>' . $record->body_value);
+
+      $tags = $dom->getElementsByTagName('img');
+      foreach ($tags as $image) {
+
+        // Update images.
+        $title = $image->getAttribute('title');
+        if (!empty($title)) {
+          $image->setAttribute('data-caption', $title);
+        }
+
+        $style = str_replace(' ', '', $image->getAttribute('style'));
+        if (!empty($style) && strstr($style, 'float:right')) {
+          $image->setAttribute('data-align', 'right');
+          $image->removeAttribute('style');
+        }
+        elseif (!empty($style) && strstr($style, 'float:left')) {
+          $image->setAttribute('data-align', 'left');
+          $image->removeAttribute('style');
+        }
+      }
+
+      // Export HTML for the body.
+      $body_updated = '';
+      $body = $dom->getElementsByTagName('body')->item(0);
+      foreach ($body->childNodes as $child) {
+        $body_updated .= $dom->saveHTML($child);
+      }
+
+      if ($body_updated != $record->body_value) {
+        // Update database.
+        db_query("UPDATE {field_data_body} SET body_value = :new, body_format = '1' WHERE entity_id = :eid AND revision_id = :rid AND delta = :delta",
+          array(
+            ':new' => $body_updated,
+            ':eid' => $record->entity_id,
+            ':rid' => $record->revision_id,
+            ':delta' => $record->delta
+          ));
+      }
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->entity_id;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    $ret = t("Image captions updated to data attributes.");
+    return $ret;
+  }
+}
+
