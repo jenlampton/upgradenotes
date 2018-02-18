@@ -1,0 +1,43 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Implements hook_update_N(). Enables new modules. Doesn't work, dunno why.
+ */
+function arf_upgrade_update_1000(&$sandbox) {
+  // Emable the things we want from Drupal 7.
+  $module_list = array(
+    'arf_alter',
+    'ckeditor',
+    'filefield_sources',
+    'redirect',
+    'views_ui',
+  );
+  module_enable($module_list, TRUE);
+}
+
+/**
+ * Implements hook_update_N(). Cleans up the managed file table and files dir.
+ */
+function arf_upgrade_update_1001(&$sandbox) {
+  // UPDATE file_managed SET uri = REPLACE(uri, 'public://[termpath-raw]', 'public://termpath-raw');
+  db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://[termpath-raw]', 'public://termpath-raw')");
+  // UPDATE file_managed SET uri = REPLACE(uri, 'public://image/', 'public://images/');
+  db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://image/', 'public://images/')");
+  // UPDATE file_managed SET uri = REPLACE(uri, 'public://arf_pubs/[title-raw]/', 'public://arf_pubs/');
+  db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://arf_pubs/[title-raw]', 'public://arf_pubs/title-raw');");
+  // UPDATE file_managed SET uri = REPLACE(uri, 'public://webfiles/all/project/[bookpath]', 'public://webfiles/all/project/bookpath');
+  db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://webfiles/all/project/[bookpath]', 'public://arf_pubs/title-raw');");
+}
+
+
+/**
+ * Implements hook_update_N(). Converts photo field from file to image.
+
+function arf_upgrade_update_1002(&$sandbox) {
+
+}
+*/

@@ -1,0 +1,5 @@
+name = ARF Upgrade - Backdrop
+description = Upgrade a Drupal 7 site to Backdrop CMS.
+package = Jeneration
+backdrop = 1.x
+version = 1.x-1.0

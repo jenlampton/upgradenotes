@@ -1,0 +1,192 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function arf_upgrade_enable() {
+  // Set an initial value for the schema version so we can run updates after install.
+  drupal_set_installed_schema_version('arf_upgrade', 6000);
+}
+
+/**
+ * Implements hook_install().
+ */
+function arf_upgrade_install() {
+  drupal_set_message('Old unused modules and themes will be removed from the system. Run update next.');
+}
+
+/**
+ * Implements hook_update_N(). Disable and uninstall all unnecessary modules.
+ */
+function arf_upgrade_update_6001() {
+
+  // Enable old modules that have cruft in the DB so we can remove below.
+  $mising_modules = array(
+    'acl',
+    'activitystream',
+    'activitystream_facebook',
+    'activitystream_feed',
+    'cobalt',
+    'cobaltnodes',
+    'cobalttaxonomy',
+    'content_copy',
+    'date',
+    'date_api',
+    'date_copy',
+    'date_php4',
+    'date_popup',
+    'date_timezone',
+    'fckeditor',
+    'feedapi',
+    'feedapi_inherit',
+    'feedapi_node',
+    'feedapi_stat',
+    'jquery_ui',
+    'merci',
+    'merci_inventory',
+    'merci_permissions',
+    'merci_template',
+    'parser_common_syndication',
+    'sparkline',
+    'webform',
+  );
+  module_enable($modules);
+
+  // Disable / Uninstall unneeded modules.
+  $modules = array(
+    'acl',
+    'activitystream',
+    'activitystream_facebook',
+    'activitystream_feed',
+    'cobalt',
+    'cobaltnodes',
+    'cobalttaxonomy',
+    'color',
+    'content_copy',
+    'content_permissions',
+    'ctools',
+    'date',
+    'date_api',
+    'date_copy',
+    'date_php4',
+    'date_popup',
+    'date_timezone',
+    'imagecache',
+    'insert',
+    'page_manager',
+    'panels',
+    'nodereference',
+    'userreference',
+    'stylizer',
+    'token_actions',
+    'views',
+    'views_ui',
+    'views_content',
+    'advanced help',
+    'better_formats',
+    'book_manager',
+    'cacherouter',
+    'ckeditor',
+    'counter',
+    'custom_breadcrumbs',
+    'custom_breadcrumbs_identifiers',
+    'dhtml_menu',
+    'disable_messages',
+    'edit_term',
+    'emfield',
+    'fckeditor',
+    'feedapi',
+    'feedapi_inherit',
+    'feedapi_node',
+    'feedapi_stat',
+    'gmap',
+    'gmap_location',
+    'gmap_macro_builder',
+    'google_auth',
+    'hierarchical_select',
+    'hs_flatlist',
+    'hs_menu',
+    'hs_taxonomy',
+    'jquery_ui',
+    'jquery_update',
+    'linkchecker',
+    'location',
+    'location_cck',
+    'location_node',
+    'media',
+    'media_emfield',
+    'media_vimeo',
+    'media_youtube',
+    'merci',
+    'merci_inventory',
+    'merci_permissions',
+    'merci_template',
+    'mimedetect',
+    'openlayers',
+    'parser_common_syndication',
+    'php',
+    'picasa',
+    'picasa_album',
+    'picasa_photo',
+    'pngfix',
+    'sparkline',
+    'taxonomy_defaults',
+    'talk',
+    'thickbox',
+    'webfm',
+    'webfm_image',
+    'webfm_popup',
+    'webform',
+  );
+  module_disable($modules);
+
+  foreach ($modules as $module) {
+    drupal_uninstall_module($module);
+    // Clean up the blocks table.
+    db_query("DELETE from {blocks} WHERE module = '$module'");
+    // Clean up the variable table.
+    db_query("DELETE from {variable} WHERE name LIKE '$module%'");
+  }
+}
+
+/**
+ * Implements hook_update_N().
+ * Removes old node types and blocks. Sets theme and cache settings.
+ */
+function arf_upgrade_update_6002() {
+  // DELETE old disabled content types.
+  $old_types = array(
+    'arf_pubs',
+    'event_public',
+    'merci_reservation',
+    'project_old',
+    'rotor_item',
+    'weblinks',
+  );
+  foreach ($old_types as $name) {
+    db_query("DELETE from {node} WHERE type = '$name'");
+    db_query("DELETE from {content_node_field_instance} WHERE type_name = '$name'");
+  }
+
+  // Clean up the blocks table some more.
+  db_query("DELETE from {blocks} WHERE module = 'block' AND delta = 4"); // SiteMeter Hit Counter
+
+  // Theme configuration.
+  module_enable('garland');
+  variable_set('theme_default', 'garland');
+  variable_del('theme_settings');
+  variable_del('theme_arfland_settings');
+  variable_del('theme_giordani_settings');
+  variable_del('simplemenu_theme');
+  db_query("DELETE from {system} WHERE type = 'theme' AND status = 0");
+
+  // Cache configuration.
+  variable_set('cache', 0);
+  variable_set('block_cache', 0);
+  variable_set('preprocess_css', 0);
+  variable_set('preprocess_js', 0);
+}

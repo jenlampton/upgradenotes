@@ -36,9 +36,9 @@ Almost all scripts have a matching custom module that performs cleanup tasks and
 
 - arf.berkley.edu (Drupal 6 to Backdrop Upgrade)
 	- [Notes](notes/arf-upgrade.md)
-	- Drupal 6 module
-	- Drupal 7 module
-	- Backdrop 1 module
+	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/arf_upgrade)
+	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/arf_upgrade)
+	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/arf_upgrade)
 
 
 ## To do

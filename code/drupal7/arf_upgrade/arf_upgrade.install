@@ -1,0 +1,99 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Implements hook_update_N().
+ * Disable and uninstall all legacy modules. Set themes, adjust settings.
+ */
+function arf_upgrade_update_7000(&$sandbox) {
+  // Disable / Uninstall unneeded modules.
+  $modules = array(
+    'aggregation_views',
+    'better_formats',
+    'book_manager',
+    'cas',
+    'ckeditor',
+    'colorpicker',
+    'colorpicker_cck',
+    'content',
+    'content_access',
+    'content_profile',
+    'content_profile_registration',
+    'delegator',
+    'devel_themer',
+    'drupalforfirebug',
+    'drupalforfirebug_preprocess',
+    'feeds',
+    'feeds_import',
+    'feeds_ui',
+    'fieldgroup',
+    'filefield',
+    'friendfeed',
+    'google_auth',
+    'help_example',
+    'imageapi',
+    'imageapi_gd',
+    'imageapi_imagemagick',
+    'imagecache_ui',
+    'imagefield',
+    'jcalendar',
+    'jquery_plugin',
+    'module_weights',
+    'nice_menus',
+    'optionwidgets',
+    'panels_export',
+    'panels_ipe',
+    'panels_node_content',
+    'panels_page',
+    'panels_simple_cache',
+    'panels_views',
+    'perms_fieldsets',
+    'simplemenu',
+    'spamspan',
+    'system_module',
+    'userplus',
+    'util',
+    'views_export',
+    'weblinks_filter',
+  );
+  module_disable($modules);
+  drupal_uninstall_modules($modules);
+
+  // Just to be sure...
+  db_delete('system')
+    ->condition('name', $modules, 'IN')
+    ->condition('type', 'module')
+    ->execute();
+
+  // Theme settings.
+  module_enable(array('bartik'));
+  variable_set('theme_default', 'bartik');
+  variable_set('admin_theme', 'seven');
+  variable_set('node_admin_theme', 1);
+  // And disable/remove garland.
+  db_query("DELETE from {system} WHERE name = 'garland'");
+
+  // Delete the home page setting.
+  variable_del('site_frontpage');
+}
+
+/**
+ * Implements hook_update_N(). Enables new modules. Doesn't work, dunno why.
+ */
+function arf_upgrade_update_7001(&$sandbox) {
+  // Emable the things we want from Drupal 7.
+  $module_list = array(
+    'contextual',
+    'file',
+    'image',
+    'update',
+    'cck',
+    'content_migrate',
+    'references',
+    'node_reference',
+  );
+  module_enable($module_list, TRUE);
+}
