@@ -1,11 +1,17 @@
 Upgrade Notes
 ==============
 
-A collection of upgrade "scripts" for moving from Drupal 6 and Drupal 7 to Backdrop CMS.
+A collection of upgrade "scripts" for upgrading websites from Drupal 6 and/or
+Drupal 7 to Backdrop CMS.
 
-Each "script" is a markdown file for a single site, containing notes and Drush commands that should be run in sequence to complete an upgrade to Backdrop CMS.
+Each "script" is a markdown file for a single site, containing notes and a set
+of Drush commands that should be run in sequence to complete an upgrade.
 
-Almost all scripts have a matching custom module that performs cleanup tasks and various system updates as needed. Though the cleanup tasks may vary from one site to the next, the updates often correlate to one contrib module or another. Most of the custom modules are included here too, in the "code" directory.
+Almost all scripts have a matching custom module that performs cleanup tasks
+and various system updates as needed. Though the cleanup tasks may vary from
+one site to the next, the updates often correlate to specific contrib modules,
+and can likely be reused.. Most of the custom modules are included here too, i
+n the "code" directory.
 
 ## In this repository:
 
