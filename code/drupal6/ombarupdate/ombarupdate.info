@@ -1,0 +1,6 @@
+type = module
+name = Updates for OMBAR.
+description = Update to Backdrop for BGP sites, by <a href="http://ww.jeneration.com">Jeneration</a>.
+package = Jeneration
+backdrop = 1.x
+

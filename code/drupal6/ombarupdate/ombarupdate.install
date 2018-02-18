@@ -1,0 +1,108 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Implements hook_update_N: Updates all embedded image captions to use data
+ * attributes.
+ */
+function ombarupdate_update_1001(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the field table.
+    $sandbox['max'] = db_query("SELECT COUNT(entity_id) FROM {field_data_body} WHERE body_value LIKE '%[caption%'")->fetchField();
+  }
+
+  // Do a small number of items per batch, it seems slow.
+  $limit = 10;
+  $result  = db_query_range("SELECT body_value, body_summary, entity_id, revision_id, delta FROM {field_data_body} WHERE body_value LIKE '%[caption%' AND entity_id > :nid ORDER BY entity_id", 0, $limit, array(':nid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+    $body_updated = $record->body_value;
+
+    // Remove text in weird square brackets. // @todo not finding any matches.
+    $pattern = "/(\[caption([^\]]*)\])(.*?)(\[\/caption\])/";
+    if (preg_match_all($pattern, $body_updated, $matches)) {
+
+      foreach ($matches[3] as $instance => $img_html) {
+        // Reset after each pass.
+        $title = NULL;
+        $data_align = FALSE;
+
+        // Gather the alignment info.
+        if (isset($matches[2][$instance]) && !empty($matches[2][0])) {
+          if (strstr($matches[2][$instance], 'right')) {
+            $data_align = 'right';
+          }
+          elseif (strstr($matches[2][$instance], 'left')) {
+            $data_align = 'left';
+          }
+        }
+
+        // Make the image into a DOM element.
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        @$dom->loadHTML('<?xml version="1.0" encoding="UTF-8"?>' . $img_html);
+
+        // Pull the image out as a DOM object.
+        $tags = $dom->getElementsByTagName('img');
+        foreach ($tags as $image) { // Should only happen once...
+          // Gather the caption info from title attribute.
+          $title = $image->getAttribute('title');
+          if (!empty($title)) {
+            $image->setAttribute('data-caption', $title);
+          }
+          // Set the alignment as a data attribute.
+          if ($data_align) {
+            $image->setAttribute('data-align', $data_align);
+          }
+          // Remove any style attribute.
+          $image->removeAttribute('style');
+        }
+
+        $img_updated = '';
+        // Export HTML for the DOM element we created.
+        $dom_body = $dom->getElementsByTagName('body')->item(0);
+        foreach ($dom_body->childNodes as $child) { // Should only happen once...
+          $img_updated .= $dom->saveHTML($child);
+        }
+
+        // Replace the original match with the src of the new image tag.
+        $body_updated = str_replace($matches[0][$instance], $img_updated, $record->body_value);
+      }
+    }
+
+    if ($body_updated != $record->body_value) { // @todo
+      // Update database.
+      db_query("UPDATE {field_data_body} SET body_value = :new WHERE entity_id = :eid AND revision_id = :rid AND delta = :delta",
+        array(':new' => $body_updated, 'eid' => $record->entity_id, ':rid' => $record->revision_id, ':delta' => $record->delta));
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->entity_id;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    $ret = t("Image captions updated to data attributes.");
+    return $ret;
+  }
+}
+
+/**
+ * Implements hook_update_N: Updates all embedded image captions to use data
+ * attributes.
+ */
+function ombarupdate_update_1002(&$sandbox) {
+  // Update all body content to use Filtered HTML text format instead of WYSIWYG.
+  db_query("UPDATE {field_data_body} SET body_format = 'filtered_html' WHERE body_format = 'wysiwyg'");
+  // Undo previous damage.
+  db_query("UPDATE {field_data_body} SET body_format = 'filtered_html' WHERE body_format = '1'");
+}
