@@ -62,12 +62,6 @@ function iw_update_update_6001(&$sandbox) {
     taxonomy_del_vocabulary($vid);
   }
 
-  $ad_modules = array('ad_embed', 'ad_html');
-  module_disable($ad_modules);
-  foreach ($module_list2 as $module) {
-    drupal_uninstall_module($module);
-  }
-
   // Convert ad content type to node module custom type.
   db_query("UPDATE {node_type} SET module = 'node', custom = 1, locked = 0 WHERE type = 'ad'");
 
@@ -139,10 +133,8 @@ function iw_update_update_6003(&$sandbox) {
     'signup_promo',
 
     // Contrib modules next.
-    'ad', // Safe, because of previous update hook.
     'ad_cache_file',
     'ad_embed',
-    'ad_html',
     'ad_report',
     'adsense_injector',
     'apachesolr',
@@ -293,12 +285,6 @@ function iw_update_update_6003(&$sandbox) {
     db_query("DELETE from {system} WHERE name = '$module%' AND type = 'module");
   }
 
-  // Remove old buddylist tables.
-  db_drop_table(&$ret, 'buddylist');
-  db_drop_table(&$ret, 'buddylist_buddy_group');
-  db_drop_table(&$ret, 'buddylist_groups');
-  db_drop_table(&$ret, 'buddylist_pending_requests');
-
   return t('Removed legacy modules');
 }
 
@@ -308,6 +294,12 @@ function iw_update_update_6003(&$sandbox) {
 function iw_update_update_6004() {
   // Delete the home page setting.
   variable_del('site_frontpage');
+
+  // Remove old buddylist tables.
+  db_drop_table($ret, 'buddylist');
+  db_drop_table($ret, 'buddylist_buddy_group');
+  db_drop_table($ret, 'buddylist_groups');
+  db_drop_table($ret, 'buddylist_pending_requests');
 
   // Theme configuration.
   module_enable('garland');
@@ -330,3 +322,4 @@ function iw_update_update_6004() {
 
   return t('Sets theme and cache settings.');
 }
+

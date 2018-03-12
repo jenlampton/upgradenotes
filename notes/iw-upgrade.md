@@ -32,6 +32,7 @@ drush7 sqlq 'TRUNCATE access; TRUNCATE cache; TRUNCATE cache_block; TRUNCATE cac
 * Enable the update module, and update.
 
 ```bash
+drush7 -y dis varnish
 drush7 -y en iw_update
 drush7 -y updb
 ```
@@ -71,14 +72,14 @@ drush7 updb -y
 ```
 
 ### What IW Update D7 is doing:
+
 * Removes old unused modules from the system table.
 * Create new Address and Telephone fields.
   - Needs to be run before field conversion.
 * Move Phone data into Telephone field.
   - Needs to be run before field conversion.
 * Move Location data into new address field.
-*
-* Enables bartik/seven themes. Disable and uninstall the location module.
+* Disables & uninstall the location modules, Enables bartik/seven themes.
 
 
 ## Enable Redirect Separately

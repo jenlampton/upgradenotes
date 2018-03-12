@@ -10,6 +10,9 @@
 function iw_update_update_7000(&$sandbox) {
   // Disable / Uninstall unneeded modules.
   $modules = array(
+    // Couldn't uninstall these in D6 or nodes would be deleted.
+    'ad',
+    'ad_html',
     // Couldn't uninstall these in D6 - migrating...
     'cck_context',
     'content',
@@ -21,7 +24,7 @@ function iw_update_update_7000(&$sandbox) {
     'imageapi_imagemagick',
     'imagecache',
     'imagefield',
-    // Couldn't uninstall these in D6 - keeping..
+    // Couldn't uninstall these in D6 - keeping...
     'multichoice',
     'quiz_question',
     'quiz',
@@ -75,7 +78,6 @@ function iw_update_update_7001(&$sandbox) {
     'update',
     'addressfield',
     'telephone',
-    'redirect',
     'cck',
     'content_migrate',
     'references',
