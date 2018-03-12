@@ -1,0 +1,5 @@
+name = IntoWine Updates - Drupal 7
+description = Database updates for Intowine.com
+core = 7.x
+
+package = Jeneration

@@ -1,0 +1,279 @@
+<?php
+/**
+ * @file
+ * Update functions.
+ */
+
+/**
+ * Implements hook_update_N(). Disable / Uninstall unneeded modules.
+ */
+function iw_update_update_7000(&$sandbox) {
+  // Disable / Uninstall unneeded modules.
+  $modules = array(
+    // Couldn't uninstall these in D6 - migrating...
+    'cck_context',
+    'content',
+    'date_timezone',
+    // Couldn't uninstall these in D6 - updating...
+    'filefield',
+    'imageapi',
+    'imageapi_gd',
+    'imageapi_imagemagick',
+    'imagecache',
+    'imagefield',
+    // Couldn't uninstall these in D6 - keeping..
+    'multichoice',
+    'quiz_question',
+    'quiz',
+    // Couldn't uninstall these in D6 - migrating...
+    'locationfields',
+    'phone',
+    // Couldn't uninstall these in D6 - updating...
+    'upload',
+    'watchdog',
+    // Couldn't uninstall these in D6 - migrating...
+    'nodereference',
+    'optionwidgets',
+  );
+
+  module_disable($modules);
+  drupal_uninstall_modules($modules);
+
+  // Just to be sure...
+  db_delete('system')
+    ->condition('name', $modules, 'IN')
+    ->condition('type', 'module')
+    ->execute();
+
+  // Delete problematic page_title data.
+  db_query("DELETE from {page_title} WHERE type = 'panels'");
+
+  // Delete problematic nodewords data.
+  db_query("DELETE FROM {nodewords} WHERE content = 'a:1:{s:5:\"value\";s:0:\"\";}'"); // Empty.
+  db_query("DELETE FROM {nodewords} WHERE type = 9"); // Vocabulary.
+
+  // Set theme settings.
+  module_enable(array('bartik'));
+  variable_set('theme_default', 'bartik');
+  variable_set('admin_theme', 'seven');
+  variable_set('node_admin_theme', 1);
+  // And disable/remove garland.
+  db_query("DELETE from {system} WHERE name = 'garland'");
+
+  return t('Removed legacy modules');
+}
+
+/**
+ * Implements hook_update_N(). Enables new modules.
+ */
+function iw_update_update_7001(&$sandbox) {
+  // Emable the things we want from Drupal 7.
+  $module_list = array(
+    'contextual',
+    'file',
+    'image',
+    'update',
+    'addressfield',
+    'telephone',
+    'redirect',
+    'cck',
+    'content_migrate',
+    'references',
+    'metatag',
+    'metatag_importer',
+    'node_reference',
+    'nodewords_migrate',
+  );
+  module_enable($module_list, FALSE);
+
+  return t('Tried to enable new modules.');
+}
+
+/**
+ * Implements hook_update_N(). Create an address field and phone field for Wineries.
+ */
+function iw_update_update_7002(&$sandbox) {
+  // Create an address field.
+  if (!field_info_field('field_address')) {
+    $address_field = array(
+      'field_name' => 'field_address',
+      'type' => 'addressfield',
+    );
+    field_create_field($address_field);
+    $address_instance = array(
+      'field_name' => 'field_address',
+      'entity_type' => 'node',
+      'label' => 'Address',
+      'bundle' => 'winery',
+      'required' => TRUE,
+      'widget' => array(
+        'type' => 'addressfield_standard',
+        'module' => 'addressfield',
+        'settings' => array(
+          'available_countries ' => array('US' => 'US'),
+          'default_country' => 'US',
+          'format_handlers' => array(
+            'address' => 'address',
+            'address-hide-country' => 'address-hide-country',
+            'address-optional' => 'address-optional',
+            'address-hide-postal-code' => 0,
+            'address-hide-street' => 0,
+            'organisation' => 0,
+            'name-full' => 0,
+            'name-oneline' => 0,
+          ),
+        ),
+      ),
+    );
+    field_create_instance($address_instance);
+  }
+  // Create a telephone field.
+  if (!field_info_field('field_phone')) {
+    $phone_field = array(
+      'field_name' => 'field_phone',
+      'type' => 'telephone',
+    );
+    field_create_field($phone_field);
+    $phone_instance = array(
+      'field_name' => 'field_phone',
+      'entity_type' => 'node',
+      'label' => 'Phone',
+      'bundle' => 'winery',
+      'required' => TRUE,
+      'widget' => array(
+        'type' => 'telephone_default',
+        'module' => 'telephone',
+        'settings' => array(),
+      ),
+    );
+    field_create_instance($phone_instance);
+  }
+}
+
+/**
+ * Implements hook_update_N(). Copy Phone data into Telephone field.
+ */
+function iw_update_update_7003(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values.
+    $sandbox['max'] = db_query("SELECT count(nid) FROM {content_type_winery}")->fetchField();
+  }
+
+  // Set a reasoable number of writes per batch.
+  $limit = 35;
+  $result = db_query_range("SELECT nid, vid, field_phone_value FROM {content_type_winery} WHERE nid > :nid ORDER BY nid ASC", 0, $limit, array(':nid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+    // Load and update the node if it exists.
+    $node = node_load($record->nid, $record->vid);
+    if ($node) {
+      $lang = $node->language;
+      $node->field_phone[$lang][0]['value'] = $record->field_phone_value;
+      node_save($node);
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->nid;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    $modules = array('node_location', 'location');
+    module_disable($modules);
+    drupal_uninstall_modules($modules);
+    return t('Added a new field for address. Migrated in Location data.');
+  }
+}
+
+/**
+ * Implements hook_update_N(). Move Location data into new address field.
+ */
+function iw_update_update_7004(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values.
+    $sandbox['max'] = db_query("SELECT count(lid) FROM {location_instance}")->fetchField();
+  }
+
+  // Set a reasoable number of writes per batch.
+  $limit = 35;
+  $result = db_query_range("SELECT lid, nid, vid FROM {location_instance} WHERE lid > :lid ORDER BY lid ASC", 0, $limit, array(':lid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+    // Don't update the same node twice.
+    if ($record->lid != $sandbox['last_processed']) {
+      // Load and update the node if it exists.
+      $node = node_load($record->nid, $record->vid);
+      if ($node) {
+        $lang = $node->language;
+        $node->field_address[$lang][0] = array(
+          'country' => strtoupper($node->location['country']),
+          'administrative_area' => $node->location['province'],
+          'locality' => $node->location['city'],
+          'dependent_locality' => '',
+          'postal_code' => $node->location['postal_code'],
+          'thoroughfare' => $node->location['street'],
+        );
+        // Save the node.
+        node_save($node);
+      }
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->lid;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  // Sanity check for ending the update.
+  $remainder = db_query("SELECT count(lid) FROM {location_instance} WHERE lid > :lid ORDER BY lid ASC", array(':lid' => $sandbox['last_processed']))->fetchField();
+  if ($remainder == 0) {
+    $sandbox['#finished'] = 1;
+  }
+
+  if ($sandbox['#finished'] >= 1) {
+    return t('Added a new field for address. Migrated in Location data.');
+  }
+}
+
+/**
+ * Implements hook_update_N(). Removes legacy Phone field, instance, and data.
+ */
+function iw_update_update_7005(&$sandbox) {
+  // Delete the field info.
+  db_query("DELETE FROM {content_node_field} WHERE field_name = 'field_phone'");
+  // Delete the field instance info.
+  db_query("DELETE FROM {content_node_field_instance} WHERE field_name = 'field_phone'");
+  // Remove the phone column from the content_type_winery table.
+  db_drop_field('content_type_winery', 'field_phone_value');
+
+  return t('Removes legacy Phone field, instance, and data.');
+}
+
+/**
+ * Implements hook_update_N(). Enables bartik/seven themes. Disable and uninstall the location module.
+ */
+function iw_update_update_7006(&$sandbox) {
+  // Set theme settings.
+  module_enable('bartik');
+  variable_set('theme_default', 'bartik');
+  variable_set('admin_theme', 'seven');
+  variable_set('node_admin_theme', 1);
+
+  $modules = array('garland', 'location');
+  module_disable($modules);
+  drupal_uninstall_modules($modules);
+  return t('Disabled and uninstalled the location module.');
+}

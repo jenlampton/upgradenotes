@@ -1,0 +1,332 @@
+<?php
+/**
+ * @file
+ * Update functions for IntoWine.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function iw_update_enable() {
+  // Set an initial value for the schema version so we can run updates after install.
+  drupal_set_installed_schema_version('iw_update', 6000);
+}
+
+/**
+ * Implements hook_install().
+ */
+function iw_update_install() {
+  drupal_set_message('Old unused modules and themes will be removed from the system. Run update next.');
+}
+
+/**
+ * Implements hook_update_N(). Copies Ad content into text area.
+ */
+function iw_update_update_6001(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'ad'"));
+  }
+
+  $limit = 30; // Update 30 nodes at a time.
+  $result = db_query_range("SELECT nid FROM {node} WHERE type = 'ad' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($nid = db_result($result)) {
+    // Load the node
+    $node = node_load($nid);
+
+    // Copy the Ad data into the new text field.
+    if (property_exists($node, 'adtype')) {
+      $node->field_ad_text['0']['value'] = $node->ad;
+      $node->field_ad_text['0']['format'] = '2';
+    }
+    // Save the node.
+    node_save($node);
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $node->nid;
+  }
+
+  // Delete ad vocabularies and terms.
+  $vocab_ids = array(7, 12);
+  foreach ($vocab_ids as $vid) {
+    // Delete all ad terms.
+    $result = db_query_range("SELECT tid FROM {term_data} WHERE vid = :vid ORDER BY tid ASC", array(':vid' => $vid));
+    while ($tid = db_result($result)) {
+      $term = taxonomy_term_load($tid);
+      $term->delete();
+    }
+    // Delete ad vocabulary.
+    taxonomy_del_vocabulary($vid);
+  }
+
+  $ad_modules = array('ad_embed', 'ad_html');
+  module_disable($ad_modules);
+  foreach ($module_list2 as $module) {
+    drupal_uninstall_module($module);
+  }
+
+  // Convert ad content type to node module custom type.
+  db_query("UPDATE {node_type} SET module = 'node', custom = 1, locked = 0 WHERE type = 'ad'");
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+  return $ret;
+}
+
+/**
+ * Implements hook_update_N(). Removes image module and data.
+ */
+function iw_update_update_6002(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'image'"));
+  }
+
+  $limit = 50; // Delete 50 nodes at a time.
+  $result = db_query_range("SELECT nid FROM {node} WHERE type = 'image' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($nid = db_result($result)) {
+    node_delete($nid);
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $nid;
+  }
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+
+  if ($ret['#finished']) {
+    // Disable and uninstall the image module.
+    module_disable(array('image'));
+    drupal_uninstall_module('image');
+    db_query("DELETE from {blocks} WHERE module = 'image'");
+    db_query("DELETE from {system} WHERE name = 'image' AND type = 'module");
+    $ret[] = array(
+      'success' => TRUE,
+      'query' => 'Removing image data.',
+    );
+  }
+
+  return $ret;
+}
+
+/**
+ * Implements hook_update_N(). Disable and uninstall other unwanted modules.
+ */
+function iw_update_update_6003(&$sandbox) {
+  $module_list = array(
+    // First custom modules.
+    'ad_statistics_kill',
+    'companyinfo_page',
+    'intowine_cc',
+    'intowine_cellar',
+    'intowine_crossword',
+    'intowine_dirm',
+    'intowine_menus',
+    'intowine_node_context',
+    'intowine_pairing',
+    'intowine_panels',
+    'intowine_profile',
+    'intowine_promos',
+    'intowine_signup_promo',
+    'intowine_views',
+    'jen_redirects',
+    'jen_wysiwyg',
+    'jeneration',
+    'signup_promo',
+
+    // Contrib modules next.
+    'ad', // Safe, because of previous update hook.
+    'ad_cache_file',
+    'ad_embed',
+    'ad_html',
+    'ad_report',
+    'adsense_injector',
+    'apachesolr',
+    'apachesolr_search',
+    'author_facet',
+    'autoload',
+    'auto_nodetitle',
+    'bio',
+    'better_formats',
+    'buddylist',
+    'buddylistinvite',
+    'bulk_export',
+    'cck_context',
+    'codefilter',
+    'colorbox',
+    'computed_field',
+    'contact_importer',
+    'content_copy',
+    'content_profile',
+    'content_type_facet',
+    'ctools_export',
+    'custom_breadcrumbsapi',
+    'custom_breadcrumbs_taxonomy',
+    'db_maintenance',
+    'devel_themer',
+    'emfield',
+    'expire',
+    'faceted_search_ui',
+    'faceted_search_views',
+    'fieldgroup',
+    'field_group',
+    'find_path',
+    'formfilter',
+    'forward',
+    'forward_services',
+    'general_services',
+    'globalredirect_admin',
+    'gmap_location',
+    'gmap_macro_builder',
+    'gmap_views',
+    'image_im_advanced',
+    'imagecache_profiles',
+    'imagecache_ui',
+    'imce',
+    'imce_wysiwyg',
+    'improved_admin',
+    'insert_view',
+    'invite_stats',
+    'jquery_ui',
+    'jquery_update',
+    'jscalendar',
+    'jstools',
+    'lightbox2',
+    'list_to_csv',
+    'logintoboggan',
+    'memcache_admin',
+    'mimemail',
+    'mollom',
+    'moxie',
+    'nice_menus',
+    'octazen_engine',
+    'panels_mini',
+    'panels_ipe',
+    'pantheon_api',
+    'pantheon_login',
+    'phpmailer',
+    'ping',
+    'prepopulate',
+    'privatemsg_buddy',
+    'profile_migration',
+    'privatemsg',
+    'releasemonitor',
+    'search404',
+    'simplenews_scheduler',
+    'site_verify',
+    'states',
+    'taxonomy_context',
+    'taxonomy_ddmenu',
+    'taxonomy_facets',
+    'taxonomy_menu_hierarchy',
+    'taxonomy_theme',
+    'text_captcha',
+    'thickbox',
+    'tinymce',
+    'top_searches',
+    'update_status',
+    'usernode',
+    'userreference',
+    'user_relationships',
+    'user_relationships_api',
+    'varnish',
+    'vertical_tabs',
+    'widget_services',
+    'workflow_ng_ui',
+    'wysiwyg_filter',
+    'video_cck',
+    'views_bonus_grid',
+    'views_bulk_operations',
+    'views_bonus_export',
+    'views_content',
+    'views_rss',
+    'views_theme_wizard',
+    'views_ui',
+  );
+
+  module_disable($module_list);
+  foreach ($module_list as $module) {
+    drupal_uninstall_module($module);
+  }
+
+  // Second pass.
+  $module_list2 = array(
+    'captcha',
+    'custom_breadcrumbs',
+    'faceted_search',
+    'field_convert',
+    'gmap',
+    'image_legacy',
+    'invite',
+    'memcache',
+    'simplenews',
+    'service_links',
+    'panels',
+    'privatemsg',
+    'views_bonus',
+    'workflow_ng',
+    'wysiwyg',
+  );
+  module_disable($module_list2);
+  foreach ($module_list2 as $module) {
+    drupal_uninstall_module($module);
+  }
+
+  // Third pass.
+  $module_list3 = array(
+    'page_manager',
+  );
+  module_disable($module_list3);
+  foreach ($module_list3 as $module) {
+    drupal_uninstall_module($module);
+  }
+
+  // Clean up the blocks, variables, and system tables.
+  $all = array_merge($module_list, $module_list2, $module_list3, $module_list4);
+  foreach ($all as $module) {
+    db_query("DELETE from {blocks} WHERE module = '$module'");
+    db_query("DELETE from {variable} WHERE name LIKE '$module%'");
+    db_query("DELETE from {system} WHERE name = '$module%' AND type = 'module");
+  }
+
+  // Remove old buddylist tables.
+  db_drop_table(&$ret, 'buddylist');
+  db_drop_table(&$ret, 'buddylist_buddy_group');
+  db_drop_table(&$ret, 'buddylist_groups');
+  db_drop_table(&$ret, 'buddylist_pending_requests');
+
+  return t('Removed legacy modules');
+}
+
+/**
+ * Implements hook_update_N(). Sets theme and cache settings.
+ */
+function iw_update_update_6004() {
+  // Delete the home page setting.
+  variable_del('site_frontpage');
+
+  // Theme configuration.
+  module_enable('garland');
+  variable_set('theme_default', 'garland');
+  variable_del('theme_settings');
+  variable_del('theme_custom_settings');
+  variable_del('theme_minnelli_settings');
+  variable_del('theme_wine_settings');
+  variable_del('theme_wine_admin_settings');
+  variable_del('theme_wine_responsive_settings');
+  variable_del('theme_zen_settings');
+
+  db_query("DELETE from {system} WHERE type = 'theme' AND status = 0");
+
+  // Cache configuration.
+  variable_set('cache', 0);
+  variable_set('block_cache', 0);
+  variable_set('preprocess_css', 0);
+  variable_set('preprocess_js', 0);
+
+  return t('Sets theme and cache settings.');
+}
