@@ -2,7 +2,7 @@ Upgrade notes for annimationcareerreview.com, a Drupal 6 => Backdrop CMS upgrade
 
 
 # Drupal 6
-===============================================
+===============================================================================
 
 ## Export
 
@@ -53,7 +53,7 @@ drush7 sql-dump --gzip --result-file=../../d6.sql
 ```
 
 # Drupal 7
-=================================================
+===============================================================================
 
 ## Import
 
@@ -109,7 +109,7 @@ drush7 -y pm-uninstall page_title
 
 * Migrate all metatags from nodewords using the Drupal UI.
 	* Log in  user/ogin
-	* Import at admin/config/search/metatags/importer
+	* Import at admin/config/search/metatags/importer/nodewords
 	* Check that articles have defined metatags at admin/content
 	* Check that terms have defined metatags at admin/structure/taxonomy/vocabulary_1
 	* @todo make a drush command version of this step for sanity
@@ -140,7 +140,7 @@ drush7 sql-dump --gzip --result-file=../../d7.sql
 
 
 # Backdrop
-=================================================
+===============================================================================
 
 ## Clean up Config
 
