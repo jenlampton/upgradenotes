@@ -65,7 +65,7 @@ drush7 sql-drop -y
 gunzip -c d6.sql.gz | drush7 sqlc
 ```
 
-## Upgrade
+## Upgrade everything
 
 ```bash
 drush7 updb -y
@@ -82,39 +82,33 @@ drush7 updb -y
 * Disables & uninstall the location modules, Enables bartik/seven themes.
 
 
-## Enable Redirect Separately
+## Redirect
+
+* Enable Redirect Separately
 ```bash
 drush7 en redirect -y
 ```
 
-## Redirect <- Path redirect
+* Run updates again so path_redirects get converted to redirects.
 ```bash
 drush7 -y updb
 ```
 
 ## Fields
 
-* Migrate all fields from CCK.
-
+* Migrate all fields over from CCK.
 ```bash
-# Let's see what's going to change.
-drush7 content-migrate-status
-# Run it.
 drush7 content-migrate-fields -y
-# Validation.
-drush7 content-migrate-status
 ```
 
-## Metatags <- Page title
+## Metatags
 
-* Migrate all metatags from Page Title module.
-
+* Migrate all metatags from Page title module
 ```
 drush7 -y metatag-convert-page-title
 ```
 
-## Metatags <- NodeWords
-
+* Migrate all metatags from NodeWords module
 ```
 drush7 -y metatag-convert-nodewords
 ```
@@ -122,22 +116,19 @@ drush7 -y metatag-convert-nodewords
 ## Modules
 
 * Disable / Uninstall the modules we won't be needing anymore.
-
 ```
 drush7 dis cck content_migrate page_title nodewords_basic nodewords_migrate nodewords metatag_importer  -y
 drush7 pm-uninstall cck content_migrate page_title nodewords_basic nodewords_migrate modewords metatag_importer -y
 ```
 
-## Registry Rebuild
+## Export the database for import to Backdrop CMS.
 
+* Rebuild the registry (and clear all caches).
 ```bash
 drush7 rr
 ```
 
-## Export
-
-* Export the database, ready for import into Backdrop CMS.
-
+* Export the database.
 ```bash
 drush7 sql-dump > d7.sql
 ```
