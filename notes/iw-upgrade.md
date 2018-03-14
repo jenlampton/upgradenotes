@@ -159,28 +159,24 @@ gunzip -c ../../d7.sql.gz | drush sqlc
 $settings['update_free_access'] = TRUE;
 ```
 
-* Run update.php (171 pending updates)
+* Run update.php (200 pending updates)
   * This update works when run from the UI even if it fails from drush.
 
 ```bash
 drush updb -y
 ```
 
+* Run update.php it again for language mdoule. (this is not a typo)
+```bash
+drush updb -y
+```
 
-### What ACR Update Backdrop is doing:
+### What IW Update Backdrop is doing:
 
   * custom: caption filter markup (d6) => data attributes (backdrop core)
   * custom: profile nodes => user account (fields)
   	 - It's easier to add these fields in Backdrop than D7, cause config sync.
 
-
-## Modules - contrib
-
-* Enable new contrib modules
-
-```bash
-drush en  -y
-```
 
 ## Log In
 
