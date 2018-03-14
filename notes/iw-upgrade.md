@@ -191,6 +191,12 @@ drush updb -y
 * Sync with "completed" config already in /staging/ directory
 
 
+## Emoji support
+
+* Visit the status report (admin/reports/status)
+* Run the conversion for emoji support
+
+
 ## Set New Metatags (if not set by config sync...)
 
 * Navigate to admin/config/metadata/metatags/config

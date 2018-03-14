@@ -1,0 +1,576 @@
+<?php
+/**
+ * @file
+ * Update functions for IntoWine.
+ */
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function iw_update_update_dependencies() {
+  // Indicate that the mymodule_update_1000() function provided by this module
+  // must run after the field_update_1002() function.
+  $dependencies['iw_update'][1002] = array(
+    'field' => 1001,
+  );
+  $dependencies['iw_update'][1003] = array(
+    'iw_update' => 1002,
+  );
+
+  $dependencies['iw_update'][1004] = array(
+    'field' => 1001,
+  );
+  $dependencies['iw_update'][1005] = array(
+    'iw_update' => 1004,
+  );
+
+  $dependencies['iw_update'][1006] = array(
+    'field' => 1001,
+  );
+  $dependencies['iw_update'][1007] = array(
+    'iw_update' => 1006,
+  );
+  $dependencies['iw_update'][1008] = array(
+    'iw_update' => 1007,
+  );
+
+  $dependencies['iw_update'][1010] = array(
+    'iw_update' => 1009,
+  );
+
+  return $dependencies;
+}
+
+/**
+ * Implements hook_update_N(). Generic updates: Sets file directory. Fixes
+ * metatag laguage. Deletes unused vocabs and terms. Enables necessary modules.
+ */
+function iw_update_update_1000() {
+  // Set the correct files location for Backdrop.
+  config_set('system.core', 'file_public_path', 'files');
+
+  // Update all metatag langcodes.
+  db_query("UPDATE {metatag} SET language = 'und' WHERE language = 'en'");
+
+  // Delete all the terms we don't want anymore - Done in D6.
+  //db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'ad_placements'");
+  //db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'ad_groups'");
+  //db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'newsletter'");
+
+  // Delete the vocabularies - Done in D6.
+  //taxonomy_vocabulary_delete('ad_placements');
+  //taxonomy_vocabulary_delete('ad_groups');
+  //taxonomy_vocabulary_delete('newsletter');
+
+  // Enable modules that are new on Backdrop.
+  $module_list = array(
+    'bgp_blocks',
+    'bgp_views',
+    'ckeditor',
+    'dropdown_breadcrumbs',
+    'on_the_web',
+    'recaptcha',
+    'sharethis',
+    'smart_trim',
+    'smtp',
+    'views_ui',
+  );
+  module_enable($module_list, FALSE);
+
+  return t('Metatag language updated. New modules enabled.');
+}
+
+/**
+ * Implements hook_update_N: Updates embedded image captions and alignment to
+ * use data attributes instead.
+ */
+function iw_update_update_1001(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count.
+    $sandbox['max'] = db_query("SELECT COUNT(entity_id) FROM {field_data_body} WHERE body_value LIKE '%<img%'")->fetchField();
+  }
+
+  // Get all the values from the body table.
+  $limit = 100;
+  $result = db_query_range("SELECT body_value, body_summary, entity_id, revision_id, delta FROM {field_data_body} WHERE body_value LIKE '%<img%' AND entity_id > :nid ORDER BY entity_id", 0, $limit, array(':nid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+
+    $body_updated = $record->body_value;
+
+    // Parse the body for image tags.
+    $dom = new DOMDocument('1.0', 'UTF-8');
+    @$dom->loadHTML('<?xml version="1.0" encoding="UTF-8"?>' . $record->body_value);
+
+    $tags = $dom->getElementsByTagName('img');
+    foreach ($tags as $image) {
+
+      // Update captions.
+      $title = $image->getAttribute('title');
+      if (!empty($title)) {
+        $image->setAttribute('data-caption', $title);
+      }
+
+      // Update alignment.
+      $style = str_replace(' ', '', $image->getAttribute('style'));
+      if (!empty($style) && strstr($style, 'float:right')) {
+        $image->setAttribute('data-align', 'right');
+        $image->removeAttribute('style');
+      }
+      elseif (!empty($style) && strstr($style, 'float:left')) {
+        $image->setAttribute('data-align', 'left');
+        $image->removeAttribute('style');
+      }
+
+      // Export HTML for the body.
+      $body_updated = '';
+      $body = $dom->getElementsByTagName('body')->item(0);
+      foreach ($body->childNodes as $child) {
+        $body_updated .= $dom->saveHTML($child);
+      }
+
+      if ($body_updated != $record->body_value) {
+        // Update database.
+        db_query("UPDATE {field_data_body} SET body_value = :new, body_format = '1' WHERE entity_id = :eid AND revision_id = :rid AND delta = :delta",
+          array(
+            ':new' => $body_updated,
+            ':eid' => $record->entity_id,
+            ':rid' => $record->revision_id,
+            ':delta' => $record->delta,
+          ));
+      }
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->entity_id;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  // Safety check.
+  if (empty($result)) {
+    $sandbox['#finished'] = 1;
+  }
+
+  if ($sandbox['#finished'] >= 1) {
+    $ret = t('Image captions and alignment updated to data attributes.');
+    return $ret;
+  }
+}
+
+/**
+ * Implements hook_update_N(). Moves Food & Wine terms into text field values.
+ */
+function iw_update_update_1002() {
+  // Create a new food field.
+  if (is_null(field_info_field('field_food_type'))) {
+    $pair_field = array(
+      'field_name' => 'field_food_type',
+      'type' => 'text',
+      'module' => 'text',
+    );
+    field_create_field($pair_field);
+  }
+  if (is_null(field_info_instance('node', 'field_food_type', 'food_wine_pair'))) {
+    $pair_instance = array(
+      'field_name' => 'field_food_type',
+      'entity_type' => 'node',
+      'label' => 'Food type',
+      'bundle' => 'food_wine_pair',
+      'widget' => array(
+        'type' => 'text_textfield',
+        'module' => 'text',
+        'settings' => array(
+          'size' => 60,
+        ),
+      ),
+    );
+    field_create_instance($pair_instance);
+  }
+
+  // Get field values for all food_wine_pair nodes.
+  $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
+    taxonomy_vocabulary_10_tid FROM {field_data_taxonomy_vocabulary_10}");
+
+  // Save the new field values.
+  foreach ($result as $record) {
+    $term = taxonomy_term_load($record->taxonomy_vocabulary_10_tid);
+    $row = (object) array(
+      'entity_type' => $record->entity_type,
+      'bundle' => $record->bundle,
+      'deleted' => $record->deleted,
+      'entity_id' => $record->entity_id,
+      'revision_id' => $record->revision_id,
+      'language' => $record->language,
+      'delta' => $record->delta,
+      'field_food_type_value' => $term->name,
+    );
+    backdrop_write_record('field_data_field_food_type', $row);
+  }
+
+  // Delete the old field.
+  field_delete_field('taxonomy_vocabulary_10');
+
+  return t('Food & Wine terms moved into text field value.');
+}
+
+/**
+ * Implements hook_update_N(). Deletes Terms and vocabulary for "Food type".
+ */
+function iw_update_update_1003() {
+  // Delete all the old taxonomy terms.
+  $tree = taxonomy_get_tree('vocabulary_10', 0, NULL, TRUE);
+  foreach ($tree as $term) {
+    $term->delete();
+  }
+
+  // Delete the vocabulary.
+  taxonomy_vocabulary_delete('vocabulary_10');
+
+  return t('Deleted Food & Wine Vocabulary and terms.');
+}
+
+/**
+ * Implements hook_update_N(). Moves Winery Feature terms into text field values.
+ */
+function iw_update_update_1004() {
+  if (is_null(field_info_field('field_winery_highlights'))) {
+    $highlights_field = array(
+      'field_name' => 'field_winery_highlights',
+      'type' => 'list_text',
+      'module' => 'list',
+      'settings' => array(
+        'allowed_values' => array(
+          128 => 'appointment_only',
+          95 => 'events',
+          94 => 'picnics',
+          92 => 'tastings',
+          93 => 'tours',
+        ),
+      ),
+    );
+    field_create_field($highlights_field);
+  }
+  if (is_null(field_info_instance('node', 'field_winery_highlights', 'winery'))) {
+    $highlights_instance = array(
+      'field_name' => 'field_winery_highlights',
+      'entity_type' => 'node',
+      'label' => 'Winery features',
+      'bundle' => 'winery',
+      'widget' => array(
+        'type' => 'options_buttons',
+        'module' => 'options',
+        'settings' => array(),
+      ),
+    );
+    field_create_instance($highlights_instance);
+  }
+
+  // Get field values for all winery nodes.
+  $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
+    taxonomy_vocabulary_2_tid FROM {field_data_taxonomy_vocabulary_2} WHERE bundle = 'winery'");
+
+  // Save the new field values.
+  foreach ($result as $record) {
+    $row = (object) array(
+      'entity_type' => $record->entity_type,
+      'bundle' => $record->bundle,
+      'deleted' => $record->deleted,
+      'entity_id' => $record->entity_id,
+      'revision_id' => $record->revision_id,
+      'language' => $record->language,
+      'delta' => $record->delta,
+      'field_winery_highlights_value' => $record->taxonomy_vocabulary_2_tid,
+    );
+    backdrop_write_record('field_data_field_winery_highlights', $row);
+  }
+
+  // Delete the old field.
+  field_delete_field('taxonomy_vocabulary_2');
+
+  return t('Winery Feature terms moved into text field value.');
+}
+
+/**
+ * Implements hook_update_N(). Delete Winery Features Vocabulary and terms. Add field instances.
+ */
+function iw_update_update_1005() {
+  // Delete all the old taxonomy terms.
+  $tree = taxonomy_get_tree('vocabulary_2', 0, NULL, TRUE);
+  foreach ($tree as $term) {
+    if (is_object($term)) {
+      $term->delete();
+    }
+    else {
+      // Delete the old taxonomy term the hard way.
+      db_query("DELETE FROM {taxonomy_term_data} where tid = :tid", array(':tid' => $term->tid));
+      db_query("DELETE FROM {taxonomy_term_hierarchy} where tid = :tid", array(':tid' => $term->tid));
+      db_query("DELETE FROM {taxonomy_term_synonym} where tid = :tid", array(':tid' => $term->tid));
+    }
+  }
+
+  // Delete the vocabulary.
+  taxonomy_vocabulary_delete('vocabulary_2');
+
+  return t('Deleted Winery Features Vocabulary and terms.');
+}
+
+/**
+ * Implements hook_update_N(). Adds taxonomy field instances to Wine Reviews.
+ */
+function iw_update_update_1006(&$sandbox) {
+  if (is_null(field_info_instance('node', 'taxonomy_vocabulary_13', 'review'))) {
+    $regions_instance = array(
+      'field_name' => 'taxonomy_vocabulary_13',
+      'entity_type' => 'node',
+      'label' => 'Wine Regions',
+      'bundle' => 'review',
+      'widget' => array(
+        'type' => 'options_buttons',
+        'module' => 'options',
+        'settings' => array(),
+      ),
+    );
+    field_create_instance($regions_instance);
+  }
+  if (is_null(field_info_instance('node', 'taxonomy_vocabulary_14', 'review'))) {
+    $varietals_instance = array(
+      'field_name' => 'taxonomy_vocabulary_14',
+      'entity_type' => 'node',
+      'label' => 'Varietals',
+      'bundle' => 'review',
+      'widget' => array(
+        'type' => 'options_buttons',
+        'module' => 'options',
+        'settings' => array(),
+      ),
+    );
+    field_create_instance($varietals_instance);
+  }
+
+  return t('Added taxonomy field instances to Wine Reviews.');
+}
+
+/**
+ * Implements hook_update_N(). Moves Wine Regions terms into separate vocabulary.
+ */
+function iw_update_update_1007(&$sandbox) {
+  $regions_tid = 3; // NOTE: 3 is the tid for regions on the live site.
+
+  if (!isset($sandbox['tree'])) {
+    $sandbox['tree'] = taxonomy_get_tree('vocabulary_1', $regions_tid, NULL, TRUE);
+  }
+
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the taxonomy tree.
+    $sandbox['max'] = count($sandbox['tree']);
+  }
+
+  if ($sandbox['max']) {
+    $count = 0;
+    foreach ($sandbox['tree'] as $key => $term) {
+      if ($count <= 50) { // Set a limit so we don't exceed batch.
+        $count++;
+        // Move the term to a new vocabulary.
+        $term->tid = trim($term->tid);
+        $term->vocabulary = 'vocabulary_13'; // Wine Regions vocab.
+        // Move child terms to root.
+        if ($term->parents == array(0 => $regions_tid)) {
+          // If this was a child of 'Wine Regions' it is now top-level.
+          $term->parent = array(0);
+        }
+        // Save the updated term.
+        $term->save();
+        // remove the term from the tree so updates can proceed.
+        unset($sandbox['tree'][$key]);
+
+        // Update our progress information for the batch update.
+        $sandbox['progress']++;
+        $sandbox['last_processed'] = $key;
+      }
+    }
+
+    // Indicate our current progress to the batch update system. If there's no
+    // max value then there's nothing to update and we're finished.
+    $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+    if ($sandbox['#finished'] >= 1) {
+      return t('Wine Regions terms moved into separate vocabulary');
+    }
+  }
+
+  return t('Skipped Wine Regions vocabulary update.');
+}
+
+/**
+ * Implements hook_update_N(). Move Wine Regions term field values to new fields.
+ */
+function iw_update_update_1008(&$sandbox) {
+  if (!isset($sandbox['tree'])) {
+    // Get the tree for the Wine Regions vocab.
+    $sandbox['tree'] = taxonomy_get_tree('vocabulary_13', 0, NULL, TRUE);
+  }
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the taxonomy tree.
+    $sandbox['max'] = count($sandbox['tree']);
+  }
+
+  if ($sandbox['max']) {
+    $count = 0;
+    foreach ($sandbox['tree'] as $key => $term) {
+      if ($count <= 25) { // Set a limit so we don't exceed batch.
+        $count++;
+
+        $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
+          taxonomy_vocabulary_1_tid FROM {field_data_taxonomy_vocabulary_1}
+          WHERE taxonomy_vocabulary_1_tid = :tid", array(':tid' => $term->tid));
+
+          // Save the new field values.
+          foreach ($result as $record) {
+            $record = (object) $record;
+            $record->taxonomy_vocabulary_13_tid = $record->taxonomy_vocabulary_1_tid;
+            unset($record->taxonomy_vocabulary_1_tid);
+            backdrop_write_record('field_data_taxonomy_vocabulary_13', $record);
+          }
+
+        // remove the term from the tree so updates can proceed.
+        unset($sandbox['tree'][$key]);
+
+        // Update our progress information for the batch update.
+        $sandbox['progress']++;
+        $sandbox['last_processed'] = $key;
+      }
+    }
+
+    // Indicate our current progress to the batch update system. If there's no
+    // max value then there's nothing to update and we're finished.
+    $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+    if ($sandbox['#finished'] >= 1) {
+      return t('Wine Regions field values moved to a new field.');
+    }
+  }
+
+  return t('Skipped Wine Regions field value update.');
+}
+
+/**
+ * Implements hook_update_N(). Moves Varietals terms into separate vocabulary.
+ */
+function iw_update_update_1009(&$sandbox) {
+  $varietals_tid = 2; // NOTE: 2 is the tid for varietals on the live site.
+
+  if (!isset($sandbox['tree'])) {
+    $sandbox['tree'] = taxonomy_get_tree('vocabulary_1', $varietals_tid, NULL, TRUE);
+  }
+
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the taxonomy tree.
+    $sandbox['max'] = count($sandbox['tree']);
+  }
+
+  if ($sandbox['max']) {
+    $count = 0;
+    foreach ($sandbox['tree'] as $key => $term) {
+      if ($count <= 50) { // Set a limit so we don't exceed batch.
+        $count++;
+        // Move the term to a new vocabulary.
+        $term->tid = trim($term->tid);
+        $term->vocabulary = 'vocabulary_14'; // Varietals
+        // Move child terms to root.
+        if ($term->parents == array(0 => $varietals_tid)) {
+          // If this was a child of 'Varietals' it is now top-level.
+          $term->parent = array(0);
+        }
+        // Save the updated term.
+        $term->save();
+        // remove the term from the tree so updates can proceed.
+        unset($sandbox['tree'][$key]);
+
+        // Update our progress information for the batch update.
+        $sandbox['progress']++;
+        $sandbox['last_processed'] = $key;
+      }
+    }
+
+    // Indicate our current progress to the batch update system. If there's no
+    // max value then there's nothing to update and we're finished.
+    $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+    if ($sandbox['#finished'] >= 1) {
+      return t('Varietals terms moved into separate vocabulary');
+    }
+  }
+
+  return t('Skipped Varietals terms update.');
+}
+
+/**
+ * Implements hook_update_N(). Move Varietals term field values to new fields.
+ */
+function iw_update_update_1010(&$sandbox) {
+  if (!isset($sandbox['tree'])) {
+    // Get the tree for the Varietals vocab.
+    $sandbox['tree'] = taxonomy_get_tree('vocabulary_14', 0, NULL, TRUE);
+  }
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the taxonomy tree.
+    $sandbox['max'] = count($sandbox['tree']);
+  }
+
+  if ($sandbox['max']) {
+    $count = 0;
+    foreach ($sandbox['tree'] as $key => $term) {
+      if ($count <= 25) { // Set a limit so we don't exceed batch.
+        $count++;
+
+        $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
+          taxonomy_vocabulary_1_tid FROM {field_data_taxonomy_vocabulary_1}
+          WHERE taxonomy_vocabulary_1_tid = :tid", array(':tid' => $term->tid));
+
+          // Save the new field values.
+          foreach ($result as $record) {
+            $record = (object) $record;
+            $record->taxonomy_vocabulary_14_tid = $record->taxonomy_vocabulary_1_tid;
+            unset($record->taxonomy_vocabulary_1_tid);
+            backdrop_write_record('field_data_taxonomy_vocabulary_14', $record);
+          }
+
+        // remove the term from the tree so updates can proceed.
+        unset($sandbox['tree'][$key]);
+
+        // Update our progress information for the batch update.
+        $sandbox['progress']++;
+        $sandbox['last_processed'] = $key;
+      }
+    }
+
+    // Indicate our current progress to the batch update system. If there's no
+    // max value then there's nothing to update and we're finished.
+    $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+    if ($sandbox['#finished'] >= 1) {
+      return t('Wine Regions field values moved to a new field.');
+    }
+  }
+
+  return t('Skipped Wine Regions field value update.');
+}

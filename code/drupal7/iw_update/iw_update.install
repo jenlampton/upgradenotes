@@ -261,11 +261,16 @@ function iw_update_update_7005(&$sandbox) {
   // Remove the phone column from the content_type_winery table.
   db_drop_field('content_type_winery', 'field_phone_value');
 
+  // Remove some modules.
+  $modules = array('phone', 'location_node');
+  module_disable($modules);
+  drupal_uninstall_modules($modules);
+
   return t('Removes legacy Phone field, instance, and data.');
 }
 
 /**
- * Implements hook_update_N(). Enables bartik/seven themes. Disable and uninstall the location module.
+ * Implements hook_update_N(). Enables bartik/seven themes. Disable and uninstall the location modules.
  */
 function iw_update_update_7006(&$sandbox) {
   // Set theme settings.
@@ -274,8 +279,10 @@ function iw_update_update_7006(&$sandbox) {
   variable_set('admin_theme', 'seven');
   variable_set('node_admin_theme', 1);
 
+  // Remove some modules.
   $modules = array('garland', 'location');
   module_disable($modules);
   drupal_uninstall_modules($modules);
-  return t('Disabled and uninstalled the location module.');
+
+  return t('Disabled and uninstalled leftover modules.');
 }
