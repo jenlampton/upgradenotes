@@ -159,23 +159,25 @@ gunzip -c ../../d7.sql.gz | drush sqlc
 $settings['update_free_access'] = TRUE;
 ```
 
-* Run update.php (200 pending updates)
+* Run update.php (211 pending updates)
   * This update works when run from the UI even if it fails from drush.
 
 ```bash
 drush updb -y
 ```
 
-* Run update.php it again for language mdoule. (this is not a typo)
-```bash
-drush updb -y
-```
-
 ### What IW Update Backdrop is doing:
 
-  * custom: caption filter markup (d6) => data attributes (backdrop core)
-  * custom: profile nodes => user account (fields)
-  	 - It's easier to add these fields in Backdrop than D7, cause config sync.
+* Generic updates: Sets file directory. Fixes metatag laguage. Enables modules.
+* Moves Food & Wine terms into text field values.
+* Deletes Terms and vocabulary for "Food type".
+* Moves Winery Feature terms into text field values.
+* Deletes Winery Features Vocabulary and terms.
+* Adds taxonomy field instances to Wine Reviews.
+* Moves Wine Regions terms into separate vocabulary.
+* Moves Regions term field values to new fields.
+* Moves Varietals terms into separate vocabulary.
+* Image captions and alignment updated to data attributes.
 
 
 ## Log In
@@ -183,47 +185,27 @@ drush updb -y
 * Log into the site as the root user Admin.
 
 
-## Modules - core / custom
-
-* Enable custom, core, and submodules (manually - until they will enable with drush)
-  - ckeditor
-  - contextual
-  - redirect
-  - update
-  - views_ui
-  - bgp_blocks
-  - bgp_views
-  - bgp_api
-  - bgp_quinstreet
-  - jeneration
-  - flexslider_views
-  - metatag_verify
-  - smtp
-
-```bash
-drush en ckeditor contextual redirect update views_ui bgp_blocks bgp_views bgp_api bgp_quinstreet jeneration -y
-```
-
 ## Configuration Sync
 
 * Navigate to admin/config/development/configuration
 * Sync with "completed" config already in /staging/ directory
 
-## Set New Metatags
+
+## Set New Metatags (if not set by config sync...)
 
 * Navigate to admin/config/metadata/metatags/config
 * Enable Global
 * Enable Content
 * Enable Taxonomy term
 * Enable Home page
-* Edit Home page:
-  - Set Bing: 08D15ABFD61ED9A98F41F3C0FC5078D0
-  - Set google: WVe5slAvly494IKHI1lFCW-RauN1xlOG2Opbb7E-svY
+  * Edit Home page:
+    - Set Bing: 08D15ABFD61ED9A98F41F3C0FC5078D0
+    - Set google: yonW3e9rXTMmAn9Aov84uuOMEPke8_nmfL8tDAR8REg
 
 
 ## Cleanup
 
-* disable and uninstall the ACR Update module
+* Disable and uninstall the IW Update module
 
 ```bash
 drush dis acrupdate -y
