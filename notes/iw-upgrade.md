@@ -217,6 +217,9 @@ drush updb -y
 * Navigate to admin/config/development/configuration
 * Sync with "completed" config already in /staging/ directory
 
+## Clear all caches
+
+* This should be done with a config sync, but for some reason is not.
 
 ## Emoji support
 
@@ -224,29 +227,13 @@ drush updb -y
 * Run the conversion for emoji support
 
 
-## Set New Metatags (if not set by config sync...)
-
-* Navigate to admin/config/metadata/metatags/config
-* Enable Global
-* Enable Content
-* Enable Taxonomy term
-* Enable Home page
-  * Edit Home page:
-    - Set Bing: 08D15ABFD61ED9A98F41F3C0FC5078D0
-    - Set google: yonW3e9rXTMmAn9Aov84uuOMEPke8_nmfL8tDAR8REg
-
-
 ## Cleanup
 
 * Disable and uninstall the IW Update module
 
 ```bash
-drush dis acrupdate -y
-drush pm-uninstall acrupdate -y
+drush dis iw_update -y
+drush pm-uninstall iw_update -y
 ```
 
-set global innodb_large_prefix=on
-
-iwbd_dev
-nuvNilNetjebrec;
 
