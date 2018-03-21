@@ -17,6 +17,7 @@ n the "code" directory.
 
 - "notes" directory: contains detailed notes on the upgrade process.
 - "code" directory: contains custom module used to run updates.
+- "scripts" directory: contains shell scrpts to run through the whole upgrade.
 
 ## Sites upgraded to Backdrop
 
