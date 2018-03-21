@@ -5,48 +5,139 @@
  */
 
 /**
- * Implements hook_update_N(). Disable / Uninstall unneeded modules.
+ * Implements hook_update_N(). Clean up database.
  */
 function iw_update_update_7000(&$sandbox) {
-  // Disable / Uninstall unneeded modules.
+  // Remove old modules from sytem table.
   $modules = array(
-    // Couldn't uninstall these in D6 or nodes would be deleted.
+    'ping',
+    'upload',
+    'watchdog',
+    'adsense_injector',
+    'bio',
+    'buddylist',
+    'buddylistinvite',
+    'captcha',
+    'text_captcha',
+    'cck_context',
+    'codefilter',
+    'computed_field',
     'ad',
     'ad_html',
-    // Couldn't uninstall these in D6 - migrating...
-    'cck_context',
+    'ad_cache_file',
+    'ad_report',
+    'apachesolr',
+    'apachesolr_search',
+    'autoload',
     'content',
+    'content_copy',
+    'nodereference',
+    'optionwidgets',
+    'userreference',
+    'contact_importer',
+    'octazen_engine',
     'date_timezone',
-    // Couldn't uninstall these in D6 - updating...
-    'filefield',
+    'image_im_advanced',
     'imageapi',
     'imageapi_gd',
     'imageapi_imagemagick',
     'imagecache',
     'imagefield',
-    // Couldn't uninstall these in D6 - keeping...
+    'filefield',
+    'invite_stats',
+    'lightbox2',
+    'nodewords',
+    'nodewords_basic',
+    'path_redirect',
+    'phone',
     'multichoice',
     'quiz_question',
     'quiz',
-    // Couldn't uninstall these in D6 - migrating...
+    'intowine_cc',
+    'intowine_dirm',
+    'custom_breadcrumbsapi',
+    'custom_breadcrumbs_taxonomy',
+    'devel_themer',
+    'video_cck',
+    'emfield',
+    'find_path',
+    'formfilter',
+    'globalredirect_admin',
+    'gmap_views',
+    'insert_view',
+    'jscalendar',
+    'jstools',
+    'list_to_csv',
     'locationfields',
+    'mimemail',
+    'moxie',
+    'pantheon_api',
+    'pantheon_login',
     'phone',
-    // Couldn't uninstall these in D6 - updating...
+    'phpmailer',
+    'profile_migration',
+    'releasemonitor',
+    'search404',
+    'simplenews',
+    'simplenews_scheduler',
+    'taxonomy_context',
+    'taxonomy_theme',
+    'thickbox',
+    'tinymce',
+    'top_searches',
+    'update_status',
+    'usernode',
+    'user_relationships',
+    'views_rss',
+    'views_theme_wizard',
+    'views_bonus',
+    'views_bonus_grid',
+    'states',
+    'workflow_ng',
+    'workflow_ng_ui',
+    'companyinfo_page',
+    'privatemsg_buddy',
+    'signup_promo',
+    'taxonomy_ddmenu',
     'upload',
     'watchdog',
-    // Couldn't uninstall these in D6 - migrating...
-    'nodereference',
-    'optionwidgets',
   );
 
-  module_disable($modules);
-  drupal_uninstall_modules($modules);
-
-  // Just to be sure...
   db_delete('system')
     ->condition('name', $modules, 'IN')
     ->condition('type', 'module')
     ->execute();
+
+  // Remove unneeded database tables.
+  db_drop_table('buddylist');
+  db_drop_table('buddylist_buddy_group');
+  db_drop_table('buddylist_groups');
+  db_drop_table('buddylist_pending_requests');
+  db_drop_table('captcha_points');
+  db_drop_table('captcha_sessions');
+  db_drop_table('cache_apachesolr');
+  db_drop_table('cache_workflow_ng');
+  db_drop_table('gsitemap'); // Drupal 4.7!!!
+  db_drop_table('gsitemap_additional');
+  db_drop_table('moxie_role');
+  db_drop_table('moxie_settings');
+  db_drop_table('old_spam_custom');
+  db_drop_table('old_spam_reported');
+  db_drop_table('old_spam_tokens');
+  db_drop_table('simplenews_newsletters');
+  db_drop_table('simplenews_scheduler');
+  db_drop_table('simplenews_scheduler_editions');
+  db_drop_table('simplenews_snid_tid');
+  db_drop_table('simplenews_subscriptions');
+  db_drop_table('taxonomy_context_term');
+  db_drop_table('taxonomy_context_vocabulary');
+  db_drop_table('top_searches');
+  db_drop_table('user_relationship_type_roles');
+  db_drop_table('user_relationship_type_roles_receive');
+  db_drop_table('user_relationship_types');
+  db_drop_table('user_relationships');
+  db_drop_table('usernode'); // Drupal 5!
+  db_drop_table('workflow_ng_cfgs');
 
   // Delete problematic page_title data.
   db_query("DELETE from {page_title} WHERE type = 'panels'");
@@ -54,6 +145,13 @@ function iw_update_update_7000(&$sandbox) {
   // Delete problematic nodewords data.
   db_query("DELETE FROM {nodewords} WHERE content = 'a:1:{s:5:\"value\";s:0:\"\";}'"); // Empty.
   db_query("DELETE FROM {nodewords} WHERE type = 9"); // Vocabulary.
+
+  // Delete unnecessary menus.
+  $menus = array('navigation', 'secondary-menu', 'menu-wine-tools');
+  foreach ($menus as $name) {
+    $menu = menu_load($name);
+    menu_delete($menu);
+  }
 
   // Set theme settings.
   module_enable(array('bartik'));
@@ -88,7 +186,7 @@ function iw_update_update_7001(&$sandbox) {
   );
   module_enable($module_list, FALSE);
 
-  return t('Tried to enable new modules.');
+  return t('Enabled new modules.');
 }
 
 /**
@@ -187,9 +285,6 @@ function iw_update_update_7003(&$sandbox) {
   $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
 
   if ($sandbox['#finished'] >= 1) {
-    $modules = array('node_location', 'location');
-    module_disable($modules);
-    drupal_uninstall_modules($modules);
     return t('Added a new field for address. Migrated in Location data.');
   }
 }
@@ -262,15 +357,15 @@ function iw_update_update_7005(&$sandbox) {
   db_drop_field('content_type_winery', 'field_phone_value');
 
   // Remove some modules.
-  $modules = array('phone', 'location_node');
+  $modules = array('phone', 'location_node', 'node_location', 'nodewords_basic');
   module_disable($modules);
   drupal_uninstall_modules($modules);
 
-  return t('Removes legacy Phone field, instance, and data.');
+  return t('Removes legacy Phone field, instance, and data. And some modules.');
 }
 
 /**
- * Implements hook_update_N(). Enables bartik/seven themes. Disable and uninstall the location modules.
+ * Implements hook_update_N(). Enables bartik/seven themes. Disable and uninstall unwanted modules.
  */
 function iw_update_update_7006(&$sandbox) {
   // Set theme settings.
@@ -279,10 +374,13 @@ function iw_update_update_7006(&$sandbox) {
   variable_set('admin_theme', 'seven');
   variable_set('node_admin_theme', 1);
 
-  // Remove some modules.
-  $modules = array('garland', 'location');
+  // Remove some last modules.
+  $modules = array('blog', 'color', 'comment', 'help', 'php', 'tracker', 'location', 'nodewords');
   module_disable($modules);
   drupal_uninstall_modules($modules);
 
-  return t('Disabled and uninstalled leftover modules.');
+  // Remove Garland
+  module_disable(array('garland'));
+
+  return t('Disabled and uninstalled final leftover modules.');
 }

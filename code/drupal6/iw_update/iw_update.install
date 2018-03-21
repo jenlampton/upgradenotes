@@ -30,7 +30,7 @@ function iw_update_update_6001(&$sandbox) {
     $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'ad'"));
   }
 
-  $limit = 30; // Update 30 nodes at a time.
+  $limit = 20; // Update 20 nodes at a time.
   $result = db_query_range("SELECT nid FROM {node} WHERE type = 'ad' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
 
   while ($nid = db_result($result)) {
@@ -49,7 +49,22 @@ function iw_update_update_6001(&$sandbox) {
     $sandbox['current_nid'] = $node->nid;
   }
 
-  // Delete ad vocabularies and terms.
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+
+  if ($ret['#finished']) {
+    $ret[] = array(
+      'success' => TRUE,
+      'query' => 'Copied Ad content into text area.',
+    );
+  }
+}
+
+/**
+ * Implements hook_update_N(). Deletes ad vocabularies and terms.
+ */
+function iw_update_update_6002() {
+  $ret = array();
+
   $vocab_ids = array(7, 12);
   foreach ($vocab_ids as $vid) {
     // Delete all ad terms.
@@ -62,57 +77,26 @@ function iw_update_update_6001(&$sandbox) {
     taxonomy_del_vocabulary($vid);
   }
 
+  module_disable(array('ad_embed'));
+  module_disable(array('ad'));
+
   // Convert ad content type to node module custom type.
   db_query("UPDATE {node_type} SET module = 'node', custom = 1, locked = 0 WHERE type = 'ad'");
 
-  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
-  return $ret;
+  drupal_uninstall_module('ad_embed');
+  // drupal_uninstall_module('ad'); - This will delete the ad node type, skip it!
+
+  $ret[] = array(
+    'success' => TRUE,
+    'query' => 'Deleted ad vocabularies and terms.',
+  );
 }
 
 /**
- * Implements hook_update_N(). Removes image module and data.
- */
-function iw_update_update_6002(&$sandbox) {
-  $ret = array();
-  if (!isset($sandbox['progress'])) {
-    $sandbox['progress'] = 0;
-    $sandbox['current_nid'] = 0;
-    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'image'"));
-  }
-
-  $limit = 50; // Delete 50 nodes at a time.
-  $result = db_query_range("SELECT nid FROM {node} WHERE type = 'image' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
-
-  while ($nid = db_result($result)) {
-    node_delete($nid);
-
-    $sandbox['progress']++;
-    $sandbox['current_nid'] = $nid;
-  }
-
-  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
-
-  if ($ret['#finished']) {
-    // Disable and uninstall the image module.
-    module_disable(array('image'));
-    drupal_uninstall_module('image');
-    db_query("DELETE from {blocks} WHERE module = 'image'");
-    db_query("DELETE from {system} WHERE name = 'image' AND type = 'module");
-    $ret[] = array(
-      'success' => TRUE,
-      'query' => 'Removing image data.',
-    );
-  }
-
-  return $ret;
-}
-
-/**
- * Implements hook_update_N(). Disable and uninstall other unwanted modules.
+ * Implements hook_update_N(). Remove left-over data from unused modules.
  */
 function iw_update_update_6003(&$sandbox) {
   $module_list = array(
-    // First custom modules.
     'ad_statistics_kill',
     'companyinfo_page',
     'intowine_cc',
@@ -132,7 +116,6 @@ function iw_update_update_6003(&$sandbox) {
     'jeneration',
     'signup_promo',
 
-    // Contrib modules next.
     'ad_cache_file',
     'ad_embed',
     'ad_report',
@@ -148,6 +131,7 @@ function iw_update_update_6003(&$sandbox) {
     'buddylist',
     'buddylistinvite',
     'bulk_export',
+    'captcha',
     'cck_context',
     'codefilter',
     'color',
@@ -162,6 +146,7 @@ function iw_update_update_6003(&$sandbox) {
     'custom_breadcrumbs_taxonomy',
     'db_maintenance',
     'devel_themer',
+    'email',
     'emfield',
     'expire',
     'faceted_search_ui',
@@ -177,6 +162,7 @@ function iw_update_update_6003(&$sandbox) {
     'gmap_location',
     'gmap_macro_builder',
     'gmap_views',
+    'gsitemap',
     'help',
     'image_im_advanced',
     'imagecache_profiles',
@@ -244,67 +230,39 @@ function iw_update_update_6003(&$sandbox) {
     'views_ui',
   );
 
-  module_disable($module_list);
   foreach ($module_list as $module) {
-    drupal_uninstall_module($module);
-  }
-
-  // Second pass.
-  $module_list2 = array(
-    'captcha',
-    'comment',
-    'custom_breadcrumbs',
-    'faceted_search',
-    'field_convert',
-    'gmap',
-    'image_legacy',
-    'invite',
-    'memcache',
-    'simplenews',
-    'service_links',
-    'panels',
-    'privatemsg',
-    'views_bonus',
-    'workflow_ng',
-    'wysiwyg',
-  );
-  module_disable($module_list2);
-  foreach ($module_list2 as $module) {
-    drupal_uninstall_module($module);
-  }
-
-  // Third pass.
-  $module_list3 = array(
-    'page_manager',
-  );
-  module_disable($module_list3);
-  foreach ($module_list3 as $module) {
-    drupal_uninstall_module($module);
-  }
-
-  // Clean up the blocks, variables, and system tables.
-  $all = array_merge($module_list, $module_list2, $module_list3, $module_list4);
-  foreach ($all as $module) {
     db_query("DELETE from {blocks} WHERE module = '$module'");
     db_query("DELETE from {variable} WHERE name LIKE '$module%'");
     db_query("DELETE from {system} WHERE name = '$module%' AND type = 'module");
   }
 
-  return t('Removed legacy modules');
+  return t('Removed unwanted module data');
 }
 
 /**
- * Implements hook_update_N(). Sets theme and cache settings.
+ * Implements hook_update_N(). Cleans up database. Sets theme & cache settings.
  */
 function iw_update_update_6004() {
   // Delete the home page setting.
   variable_del('site_frontpage');
 
-  // Remove old buddylist tables.
+  // Clean up old field instances.
+  db_query("DELETE from {field_config_instance} WHERE bundle = 'event'");
+  db_query("DELETE from {field_config_instance} WHERE bundle = 'forum'");
+  db_query("DELETE from {field_config_instance} WHERE bundle = 'poll'");
+  db_query("DELETE from {field_config_instance} WHERE bundle = 'simplenews'");
+  db_query("DELETE from {field_config_instance} WHERE bundle = 'usernode'");
+
+  // Remove old unwanted tables.
   db_drop_table($ret, 'buddylist');
   db_drop_table($ret, 'buddylist_buddy_group');
   db_drop_table($ret, 'buddylist_groups');
   db_drop_table($ret, 'buddylist_pending_requests');
+  db_drop_table($ret, 'moxie_role');
+  db_drop_table($ret, 'moxie_settings');
+  db_drop_table($ret, 'old_spam_custom');
+  db_drop_table($ret, 'old_spam_reported');
+  db_drop_table($ret, 'old_spam_tokens');
 
   // Theme configuration.
   module_enable('garland');
