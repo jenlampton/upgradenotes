@@ -209,7 +209,7 @@ drush sql-cli < ../../d7-done.sql
 
 ## Upgrade to Backdrop
 
-* Run update.php (213 pending updates)
+* Run update.php (210 pending updates)
 
 ```bash
 drush updb -y
@@ -228,7 +228,7 @@ drush updb -y
 * 1008: Moves "Wine Regions" field values to new fields.
 * 1009: Moves "Varietals" terms into separate vocabulary.
 * 1010: Moves "Varietals" field values to new fields.
-* 1011: Add Taxonomy Menu settings.
+* 1011: Adds Taxonomy Menu settings for categories.
 * 1012: Deletes empty taxonomy terms and rebuilds menu.
 
 
