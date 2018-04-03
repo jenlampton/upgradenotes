@@ -13,6 +13,7 @@ drush7 sql-dump --gzip --result-file=prod.sql.gz
 ```
 
 ## Import
+### Note: The PHP version must be PHP 5.3
 
 * Import a database, as exported from production site.
 
@@ -27,11 +28,21 @@ drush7 sqlq 'TRUNCATE ad_statistics; TRUNCATE access; TRUNCATE cache; TRUNCATE c
 drush7 sqlq 'TRUNCATE buddylist; TRUNCATE buddylist_buddy_group; TRUNCATE buddylist_groups; TRUNCATE buddylist_pending_requests; TRUNCATE gsitemap; TRUNCATE gsitemap_additional; TRUNCATE moxie_role; TRUNCATE moxie_settings; TRUNCATE old_spam_custom; TRUNCATE old_spam_reported; TRUNCATE old_spam_tokens; TRUNCATE simplenews_newsletters; TRUNCATE simplenews_scheduler; TRUNCATE simplenews_scheduler_editions; TRUNCATE simplenews_snid_tid; TRUNCATE simplenews_subscriptions; TRUNCATE taxonomy_context_term; TRUNCATE taxonomy_context_vocabulary; TRUNCATE top_searches; TRUNCATE user_relationship_type_roles; TRUNCATE user_relationship_type_roles_receive; TRUNCATE user_relationship_types; TRUNCATE user_relationships; TRUNCATE usernode; TRUNCATE workflow_ng_cfgs;'
 ```
 
+## Convert all tables to innodb
+```bash
+ drush7 sqlq "SELECT CONCAT('ALTER TABLE ', TABLE_SCHEMA, '.', TABLE_NAME,' ENGINE=MyISAM;') FROM Information_schema.TABLES WHERE TABLE_SCHEMA = 'bgp_iw_d6' AND ENGINE = 'InnoDB' AND TABLE_TYPE = 'BASE TABLE';"
+```
+
+* Make a backup.
+```bash
+drush7 sql-dump --gzip --result-file=../../d6-clean1.sql
+```
+
 ## Disable old modules, in a specific order.
 
 ```bash
-drush7 -y dis varnish memcache faceted_search_views imce_wysiwyg panels_ipe
-drush7 -y pm-uninstall varnish memcache faceted_search_views imce_wysiwyg panels_ipe
+drush7 -y dis captcha varnish memcache faceted_search_views imce_wysiwyg panels_ipe
+drush7 -y pm-uninstall captcha varnish memcache faceted_search_views imce_wysiwyg panels_ipe
 
 drush7 -y dis ad_statistics_kill companyinfo_page intowine_cc intowine_cellar intowine_crossword intowine_menus intowine_node_context intowine_pairing intowine_panels intowine_profile intowine_promos intowine_signup_promo intowine_views jen_redirects jen_wysiwyg jeneration signup_promo
 drush7 -y pm-uninstall ad_statistics_kill intowine_cellar intowine_crossword intowine_menus intowine_node_context intowine_pairing intowine_panels intowine_profile intowine_promos intowine_signup_promo intowine_views jen_redirects jen_wysiwyg jeneration
@@ -45,13 +56,18 @@ drush7 -y pm-uninstall general_services gmap_location gmap_macro_builder imageca
 drush7 -y dis jquery_update logintoboggan memcache_admin mollom nice_menus panels_mini prepopulate privatemsg site_verify forward views_bulk_operations
 drush7 -y pm-uninstall jquery_update logintoboggan memcache_admin mollom nice_menus panels_mini prepopulate privatemsg site_verify forward views_bulk_operations
 
-drush7 -y dis taxonomy_facets taxonomy_menu_hierarchy user_relationships user_relationships_api vertical_tabs wysiwyg_filter views_bonus_export views_content
-drush7 -y pm-uninstall taxonomy_facets taxonomy_menu_hierarchy user_relationships user_relationships_api vertical_tabs wysiwyg_filter views_bonus_export views_content
+drush7 -y dis taxonomy_facets taxonomy_menu_hierarchy user_relationships_api vertical_tabs wysiwyg_filter views_bonus_export views_content
+drush7 -y pm-uninstall taxonomy_facets taxonomy_menu_hierarchy user_relationships_api vertical_tabs wysiwyg_filter views_bonus_export views_content
 
 drush7 -y dis custom_breadcrumbs faceted_search globalredirect gmap service_links panels wysiwyg imce page_manager xmlsitemap_menu
 drush7 -y pm-uninstall custom_breadcrumbs faceted_search globalredirect gmap service_links panels wysiwyg imce page_manager xmlsitemap_menu
 
 drush7 cc all
+```
+
+* Make a backup.
+```bash
+drush7 sql-dump --gzip --result-file=../../d6-clean2.sql
 ```
 
 ## Cleanup
@@ -62,23 +78,26 @@ drush7 -y en iw_update
 drush7 -y updb
 ```
 
-### What ARF Upgrade D6 is doing:
+### What IW Update D6 is doing:
 
-* Converts Ads (ad module) to a simple node type.
-* Deletes Ad terms & deletes Ad vocabulary
+* Copies Ad content into text area.
+* Deletes ad vocabularies and terms.
+* Removes old data from system, block, and variable tables.
+* Deletes old tables. Sets theme & cache settings.
 * Sets theme and cache settings.
-* Disables all caching
 
 ## Export
 
 * Export the database, ready for import into Drupal 7.
 
 ```bash
-drush7 sql-dump > d6.sql
+drush7 sql-dump --gzip --result-file=../../d6-done.sql
 ```
 
 # Drupal 7
 ===============================================================================
+
+### Note: Switch the PHP version to PHP 5.6
 
 ## Import
 
@@ -86,7 +105,7 @@ drush7 sql-dump > d6.sql
 
 ```bash
 drush7 sql-drop -y
-gunzip -c d6.sql.gz | drush7 sqlc
+gunzip -c ../../d6-done.sql.gz | drush7 sqlc
 ```
 
 ## Upgrade to Drupal 7
@@ -99,13 +118,16 @@ drush7 updb -y
 
 ### What IW Update D7 is doing:
 
-* Removes old unused modules from the system table.
-* Create new Address and Telephone fields.
+* General DB cleanup, inc: Removes old modules from sytem table.
+* Enables new modules.
+* Creates an address field and phone field for Wineries.
   - Needs to be run before field conversion.
-* Move Phone data into Telephone field.
+* Copies Phone data into Telephone field.
   - Needs to be run before field conversion.
-* Move Location data into new address field.
-* Disables & uninstall the location modules, Enables bartik/seven themes.
+* Moves Location data into new address field.
+* Removes legacy Phone & Location fields and data.
+* Disables & uninstall the location modules
+* Enables bartik/seven themes.
 
 
 ## Upgrade Redirects
@@ -161,10 +183,10 @@ drush7 pm-uninstall cck content_migrate page_title metatag_importer -y
 drush7 rr
 ```
 
-* Export the database.
+* Export the database. (no gzip here)
 
 ```bash
-drush7 sql-dump > d7.sql
+drush7 sql-dump --result-file=../../d7-done.sql
 ```
 
 
@@ -182,12 +204,12 @@ drush7 sql-dump > d7.sql
 
 ```bash
 drush sql-drop -y
-gunzip -c ../../d7.sql.gz | drush sqlc
+drush sql-cli < ../../d7-done.sql
 ```
 
 ## Upgrade to Backdrop
 
-* Run update.php (209 pending updates)
+* Run update.php (213 pending updates)
 
 ```bash
 drush updb -y
@@ -195,17 +217,28 @@ drush updb -y
 
 ### What IW Update Backdrop is doing:
 
-* Generic updates: Sets file directory. Fixes metatag laguage. Enables modules.
-* Moves Food & Wine terms into text field values.
-* Deletes Terms and vocabulary for "Food type".
-* Moves Winery Feature terms into text field values.
-* Deletes Winery Features Vocabulary and terms.
-* Adds taxonomy field instances to Wine Reviews.
-* Moves Wine Regions terms into separate vocabulary.
-* Moves Regions term field values to new fields.
-* Moves Varietals terms into separate vocabulary.
-* Image captions and alignment updated to data attributes.
+* 1000: Sets file directory. Fixes metatag laguage. Enables modules.
+* 1001: Updates embedded images to use data attributes.
+* 1002: Moves "Food & Wine" terms into text field values.
+* 1003: Deletes Terms and vocabulary for "Food type".
+* 1004: Moves "Winery Feature" terms into text field values.
+* 1005: Deletes "Winery Features" Vocabulary and terms.
+* 1006: Adds taxonomy field instances to Wine Reviews.
+* 1007: Moves "Wine Regions" terms into separate vocabulary.
+* 1008: Moves "Wine Regions" field values to new fields.
+* 1009: Moves "Varietals" terms into separate vocabulary.
+* 1010: Moves "Varietals" field values to new fields.
+* 1011: Add Taxonomy Menu settings.
+* 1012: Deletes empty taxonomy terms and rebuilds menu.
 
+
+## Enable new modules
+
+* Enable the modules we'll need in Backdrop only.
+
+```bash
+drush -y en sharethis smtp views_ui
+```
 
 ## Log In
 
@@ -220,6 +253,10 @@ drush updb -y
 ## Clear all caches
 
 * This should be done with a config sync, but for some reason is not.
+
+```bash
+drush cc all
+```
 
 ## Emoji support
 
