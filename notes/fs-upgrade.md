@@ -1,31 +1,33 @@
 # PREPARE Drupal 6 Database
-
+=============================
 
 Update the Drupal 6 database
 -----------------------------
+- Convert all tables to innodb
+  ```bash
+   drush7 sqlq "SELECT CONCAT('ALTER TABLE ', TABLE_SCHEMA, '.', TABLE_NAME,' ENGINE=MyISAM;') FROM Information_schema.TABLES WHERE TABLE_SCHEMA = 'fashion_d6' AND ENGINE = 'InnoDB' AND TABLE_TYPE = 'BASE TABLE';"
+  ```
+  
 - Enable ADT Upgrader module
-  `drush en adt_upgrade`
-  * upgrades flaged content to be promoted on install
+  `drush7 en adt_upgrade`
+  * truncates database tables.
   * disables / uninstalls / removes unneeded modules
+  * Copies Ad content into text area.
+  * upgrades flaged content to be promoted on install
 
 
 Upgrade from menutrails to menu_position
 ------------------------------
 - enable menu position module
-  `drush en menu_position -y`
-- use the drush command
-  `drush menu-trails-to-menu-position`
+  `drush7 en menu_position -y`
+	- make sure your version of menu_position has the drush7 command from https://gist.github.com/ajsalminen/2719944
+
+- use the drush7 command
+  `drush7 menu-trails-to-menu-position`
 - Disable menutrails
-  `drush dis menutrails -y`
+  `drush7 dis menutrails -y`
 - Uninstall menutrails
-  `drush pm-uninstall menutrails -y`
-
-
-Change the theme
------------------
-- Change the default theme to Garland
-- Disable all other themes
-- Change the admin theme to default
+  `drush7 pm-uninstall menutrails -y`
 
 
 * Dump the Drupal 6 database.
@@ -39,7 +41,7 @@ Change the theme
 
 
 * Import the D6 daabase into D7 site.
-* Run update.php (232 pending updates)
+* Run update.php (266 pending updates)
 * Log in
 
 
@@ -47,65 +49,44 @@ Enable new field modules & CCK
 -------------------------------
 - File
 - Image
-- Field Group
+- CCK
 - Content migrate
 
 
 Upgrade fields
 ---------------
-- Visit the fields migrate page at admin/structure/content_migrate
-- migrate all fields (should be 18)
+
+- Migrate all fields over from CCK.
+
+```bash
+drush7 content-migrate-fields -y
+```
 
 
 Upgrade metatag data:
 ---------------------
-- Enable metatag, Metatag Importer
-  `drush en metatag metatag_importer -y`
+
 - visit admin/config/search/metatags/importer
   convert from nodewords
-- use drush to convert from page title module
-  `drush metatag-convert-page-title -y`
+- use drush7 to convert from page title module
+  `drush7 metatag-convert-page-title -y`
 - disable the Metatag importer module
-  `drush dis metatag_importer -y`
+  `drush7 dis metatag_importer -y`
 - Uninstall the Metatag importer module
-  `drush pm-uninstall metatag_importer -y`
+  `drush7 pm-uninstall metatag_importer -y`
 
 
 Upgrade redirect data:
 -----------------------
 - Enable redirect module
-  `drush en redirect -y`
+  `drush7 en redirect -y`
     * this will take care of updating from path_redirect
 
 Update webform module
 ---------------------------
 - Replace webform 3 with webform 4
 - Run update.php again
-  `drush updb -y`
-
-
-Enable useful core modules
----------------------------
-- Enable contextual links module.
-  `drush en contextual -y'
-
-
-Flush all caches
------------------
-- Rebuild registry.
-  `drush rr`
-
-
-Clear log messages
--------------------
-- empty the watchdog table.
-
-
-Change the theme
------------------
-- Change the default theme to Bartik
-- Disable all other themes
-- Change the admin theme to Seven
+  `drush7 updb -y`
 
 Export the database
 --------------------
@@ -118,7 +99,7 @@ Export the database
 
 * Import the Drupal 7 database into Backdrop.
 * Assure the config directory is empty.
-* Run update.php (135 pending upgrades)
+* Run update.php (171 pending upgrades)
 * Log in.
 
 
@@ -126,32 +107,18 @@ Enable the following new modules in Backdrop
 ---------------------------------------------
 - ADT Miscalaneous (will import configs)
 - Share This
-- Flexslider
 - Honeypot
 
 
 AI Changes for the Backdrop site
 -----------------------------------------
 - Add an image field to taxonomy terms.
+- 
 
 
 Port the following contrib modules to Backdrop
 ----------------------------------------------
-- Ad - https://www.drupal.org/node/2787507
-- Caption Filter
-- Custom Breadcrumbs
-- Field group
-- Iframe Filter
-- Image resize filter
-- Nodequeue (queue)
-- Paging
-- Similar
-- Site Map
-- Site Verify
-- Taxonomy menu
-- Taxonomy Title
-- Wysiwyg filter
-- XML Sitemap
+- Views Field View
 
 
 Port the following custom modules to Backdrop
