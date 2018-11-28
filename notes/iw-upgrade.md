@@ -209,7 +209,7 @@ drush sql-cli < ../../d7-done.sql
 
 ## Upgrade to Backdrop
 
-* Run update.php (210 pending updates)
+* Run update.php (211 pending updates)
 
 ```bash
 drush updb -y
@@ -237,7 +237,7 @@ drush updb -y
 * Enable the modules we'll need in Backdrop only.
 
 ```bash
-drush -y en sharethis smtp views_ui
+drush -y en ckeditor sharethis smtp views_ui bgp_blocks bgp_views iw_blocks dropdown_breadcrumbs metatag_opengraph metatag_twitter_cards metatag_verify
 ```
 
 ## Log In
