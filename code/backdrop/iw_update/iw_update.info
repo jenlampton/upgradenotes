@@ -1,5 +1,5 @@
 type = module
-name = IntoWine Updates - Backdrop CMS
+name = IntoWine Updates - ongoing
 description = Database updates for Intowine.com
 backdrop = 1.x
 

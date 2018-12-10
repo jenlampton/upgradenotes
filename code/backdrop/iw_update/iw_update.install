@@ -43,7 +43,7 @@ function iw_update_update_dependencies() {
 
 /**
  * Implements hook_update_N(). Generic updates: Sets file directory. Fixes
- * managed file table. Fixes metatag laguage. Enables necessary modules.
+ * metatag laguage. Deletes unused vocabs and terms. Enables necessary modules.
  */
 function iw_update_update_1000() {
   // Set the correct files location for Backdrop.
@@ -52,33 +52,28 @@ function iw_update_update_1000() {
   // Update all metatag langcodes.
   db_query("UPDATE {metatag} SET language = 'und' WHERE language = 'en'");
 
-  // Delete cruft from the D7 upgrade.
-  db_drop_table('d6_upgrade_filter');
+  // Delete all the terms we don't want anymore - Done in D6.
+  //db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'ad_placements'");
+  //db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'ad_groups'");
+  //db_query("DELETE FROM {taxonomy_term_data} where vocabulary = 'newsletter'");
 
-  // UPDATE file_managed set uri = REPLACE(uri, 'files/', 'public://') WHERE uri like 'files/%';
-  db_query("UPDATE {file_managed} set uri = REPLACE(uri, 'files/', 'public://') WHERE uri like 'files/%'");
-  // UPDATE file_managed set uri = REPLACE(uri, 'public://files/', 'public://') WHERE uri like 'public://files/%';
-  db_query("UPDATE {file_managed} set uri = REPLACE(uri, 'public://files/', 'public://') WHERE uri like 'public://files/%'");
+  // Delete the vocabularies - Done in D6.
+  //taxonomy_vocabulary_delete('ad_placements');
+  //taxonomy_vocabulary_delete('ad_groups');
+  //taxonomy_vocabulary_delete('newsletter');
 
-  // Enable modules/themes that are new on Backdrop.
+  // Enable modules that are new on Backdrop.
   $module_list = array(
     'bgp_blocks',
     'bgp_views',
-    'captcha',
     'ckeditor',
     'dropdown_breadcrumbs',
-    'flexslider',
-    'flexslider_fields',
-    'iw_blocks',
     'on_the_web',
-    'rabbit_hole',
-    'rh_node',
     'recaptcha',
     'sharethis',
     'smart_trim',
     'smtp',
     'views_ui',
-    'intowine', // theme
   );
   module_enable($module_list, FALSE);
 
@@ -174,76 +169,55 @@ function iw_update_update_1001(&$sandbox) {
  */
 function iw_update_update_1002() {
   // Create a new food field.
-  if (is_null(field_info_field('field_food')) || !db_table_exists('field_data_field_food')) {
+  if (is_null(field_info_field('field_food_type'))) {
     $pair_field = array(
-      'field_name' => 'field_food',
-      'type' => 'list_text',
-      'module' => 'list',
-      'settings' => array(
-        'allowed_values' => array(
-          'Beef' => 'Beef',
-          'Brunch' => 'Brunch',
-          'Cheese' => 'Cheese',
-          'Chicken' => 'Chicken',
-          'Dessert' => 'Dessert',
-          'Duck' => 'Duck',
-          'Ethnic Food' => 'Ethnic Food',
-          'Lamb' => 'Lamb',
-          'Pasta' => 'Pasta',
-          'Pizza' => 'Pizza',
-          'Pork' => 'Pork',
-          'Salad' => 'Salad',
-          'Seafood' => 'Seafood',
-          'Turkey' => 'Turkey',
-        ),
-      ),
+      'field_name' => 'field_food_type',
+      'type' => 'text',
+      'module' => 'text',
     );
     field_create_field($pair_field);
   }
-  if (is_null(field_info_instance('node', 'field_food', 'food_wine_pair'))) {
+  if (is_null(field_info_instance('node', 'field_food_type', 'food_wine_pair'))) {
     $pair_instance = array(
-      'field_name' => 'field_food',
+      'field_name' => 'field_food_type',
       'entity_type' => 'node',
       'label' => 'Food type',
       'bundle' => 'food_wine_pair',
       'widget' => array(
-        'type' => 'options_select',
-        'module' => 'options',
-        'settings' => array(),
+        'type' => 'text_textfield',
+        'module' => 'text',
+        'settings' => array(
+          'size' => 60,
+        ),
       ),
     );
     field_create_instance($pair_instance);
   }
 
-  if (db_table_exists('field_data_field_food')) {
-    // Get field values for all food_wine_pair nodes.
-    $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
-      taxonomy_vocabulary_10_tid FROM {field_data_taxonomy_vocabulary_10}");
+  // Get field values for all food_wine_pair nodes.
+  $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
+    taxonomy_vocabulary_10_tid FROM {field_data_taxonomy_vocabulary_10}");
 
-    // Save the new field values.
-    foreach ($result as $record) {
-      $term = taxonomy_term_load($record->taxonomy_vocabulary_10_tid);
-      $row = (object) array(
-        'entity_type' => $record->entity_type,
-        'bundle' => $record->bundle,
-        'deleted' => $record->deleted,
-        'entity_id' => $record->entity_id,
-        'revision_id' => $record->revision_id,
-        'language' => $record->language,
-        'delta' => $record->delta,
-        'field_food_type_value' => $term->name,
-      );
-      backdrop_write_record('field_data_field_food', $row);
-    }
-
-    // Delete the old field.
-    field_delete_field('taxonomy_vocabulary_10');
-
-    return t('Food & Wine terms moved into text field value.');
+  // Save the new field values.
+  foreach ($result as $record) {
+    $term = taxonomy_term_load($record->taxonomy_vocabulary_10_tid);
+    $row = (object) array(
+      'entity_type' => $record->entity_type,
+      'bundle' => $record->bundle,
+      'deleted' => $record->deleted,
+      'entity_id' => $record->entity_id,
+      'revision_id' => $record->revision_id,
+      'language' => $record->language,
+      'delta' => $record->delta,
+      'field_food_type_value' => $term->name,
+    );
+    backdrop_write_record('field_data_field_food_type', $row);
   }
-  else {
-    return t('Database table missing: field_data_field_food');
-  }
+
+  // Delete the old field.
+  field_delete_field('taxonomy_vocabulary_10');
+
+  return t('Food & Wine terms moved into text field value.');
 }
 
 /**
@@ -266,8 +240,7 @@ function iw_update_update_1003() {
  * Implements hook_update_N(). Moves Winery Feature terms into text field values.
  */
 function iw_update_update_1004() {
-
-  if (is_null(field_info_field('field_winery_highlights')) || !db_table_exists('field_data_field_winery_highlights')) {
+  if (is_null(field_info_field('field_winery_highlights'))) {
     $highlights_field = array(
       'field_name' => 'field_winery_highlights',
       'type' => 'list_text',
@@ -299,35 +272,29 @@ function iw_update_update_1004() {
     field_create_instance($highlights_instance);
   }
 
-  if (db_table_exists('field_data_field_winery_highlights')) {
+  // Get field values for all winery nodes.
+  $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
+    taxonomy_vocabulary_2_tid FROM {field_data_taxonomy_vocabulary_2} WHERE bundle = 'winery'");
 
-    // Get field values for all winery nodes.
-    $result = db_query("SELECT entity_type, bundle, deleted, entity_id, revision_id, language, delta,
-      taxonomy_vocabulary_2_tid FROM {field_data_taxonomy_vocabulary_2} WHERE bundle = 'winery'");
-
-    // Save the new field values.
-    foreach ($result as $record) {
-      $row = (object) array(
-        'entity_type' => $record->entity_type,
-        'bundle' => $record->bundle,
-        'deleted' => $record->deleted,
-        'entity_id' => $record->entity_id,
-        'revision_id' => $record->revision_id,
-        'language' => $record->language,
-        'delta' => $record->delta,
-        'field_winery_highlights_value' => $record->taxonomy_vocabulary_2_tid,
-      );
-      backdrop_write_record('field_data_field_winery_highlights', $row);
-    }
-
-    // Delete the old field.
-    field_delete_field('taxonomy_vocabulary_2');
-
-    return t('Winery Feature terms moved into text field value.');
+  // Save the new field values.
+  foreach ($result as $record) {
+    $row = (object) array(
+      'entity_type' => $record->entity_type,
+      'bundle' => $record->bundle,
+      'deleted' => $record->deleted,
+      'entity_id' => $record->entity_id,
+      'revision_id' => $record->revision_id,
+      'language' => $record->language,
+      'delta' => $record->delta,
+      'field_winery_highlights_value' => $record->taxonomy_vocabulary_2_tid,
+    );
+    backdrop_write_record('field_data_field_winery_highlights', $row);
   }
-  else {
-    return t('Database table missing: field_data_field_winery_highlights');
-  }
+
+  // Delete the old field.
+  field_delete_field('taxonomy_vocabulary_2');
+
+  return t('Winery Feature terms moved into text field value.');
 }
 
 /**
@@ -607,10 +574,3 @@ function iw_update_update_1010(&$sandbox) {
 
   return t('Skipped Wine Regions field value update.');
 }
-
-/**
- * Implements hook_update_N(). Move user pictures to field on the profile node.
-
-function iw_update_update_1011(&$sandbox) {
-}
-*/
