@@ -1,0 +1,6 @@
+type = module
+name = FS Upgrader - Backdrop CMS
+description = Updates for fashion-school.org site.
+package = Jeneration
+backdrop = 1.x
+version = 1.x-1.0

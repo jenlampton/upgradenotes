@@ -1,0 +1,287 @@
+<?php
+/**
+ * @file
+ * Install, Uninstall and Update hooks.
+ */
+
+/**
+ * Implements hook_enable().
+ */
+function fs_upgrade_enable() {
+  // Set an initial value for the schema version so we can run updates
+  // immediately after install.
+  drupal_set_installed_schema_version('fs_upgrade', 5999);
+}
+
+/**
+ * Update the database when this module is installed.
+ */
+function fs_upgrade_install() {
+  // Truncate cache tables.
+  $cache_tables = array(
+    'cache',
+    'cache_block',
+    'cache_content',
+    'cache_filter',
+    'cache_form',
+    'cache_menu',
+    'cache_page',
+    'cache_tax_image',
+    'cache_views',
+    'cache_views_data',
+  );
+  foreach ($cache_tables as $table) {
+    db_query("TRUNCATE %s", $table);
+  }
+
+  // Truncate unusually large tables.
+  $large_tables = array(
+    'ad_statistics',
+    'access',
+    'history',
+    'node_comment_statistics',
+    'search_index',
+    'search_dataset',
+    'search_node_links',
+    'search_total',
+    'watchdog',
+  );
+  foreach ($large_tables as $table) {
+    db_query("TRUNCATE %s", $table);
+  }
+}
+
+/**
+ * Implements hook_update_N(). Disables & Uninstalls Modules.
+ */
+function fs_upgrade_update_6001() {
+  // These modules are safe to be uninstalled & removed entirely, before the
+  // rest of the upgrade / migration begins. ALL DATA WILL BE LOST.
+  $module_list = array(
+    1 => array(
+      // CUSTOM modules
+      'ad_statistics_kill',
+      'acr_promos',
+      'allstar',
+      'category_views',
+      'csvImporter',
+      'fs_panels',
+      'fs_update',
+      'jen_api',
+      'jen_links',
+      'jen_panels',
+      'jen_redirects',
+      'jen_search',
+      'jen_tabbed_block',
+      'jen_views',
+      'jen_webform',
+      'jen_wysiwyg',
+      'quinstreet',
+      'schools',
+      'str_promos',
+      'str_views',
+      'taxonomy_image',
+
+      // CONTRIB modules
+      'bulk_export',
+      'captcha',
+      'caption_filter',
+      'checkbox_validate',
+      'content_copy',
+      'content_profile_registration',
+      'custom_breadcrumbs',
+      'date_timezone',
+      'devel',
+      'favorite_services',
+      'features',
+      'flag_limit',
+      'forward_services',
+      'general_services',
+      'globalredirect',
+      'hint',
+      'imageapi_imagemagick',
+      'imagecache_canvasactions',
+      'imagecache_ui',
+      'image_resize_filter',
+      'insert',
+      'jquery_ui',
+      'jquery_update',
+      'markup_demo',
+      'nice_menus',
+      'options_element',
+      'panels_ipe',
+      'panels_mini',
+      'site_verify',
+      'tagadelic',
+      'taxonomy_image',
+      'vantage',
+      'views_bulk_operations',
+      'views_content',
+      'views_export',
+      'views_groupby',
+      'views_or',
+      'views_slideshow_singleframe',
+      'views_slideshow',
+      'views_ui',
+      'webform_draggable_list',
+      'widget_services',
+      'wysiwyg_filter',
+    ),
+    2 => array(
+      'imagecache_actions',
+      'panels',
+      'service_links',
+      'wysiwyg',
+    ),
+    3 => array(
+      'page_manager',
+    ),
+  );
+  foreach ($module_list as $set) {
+    // Disable.
+    module_disable($set);
+    foreach ($set as $module) {
+      // Uninstall.
+      drupal_uninstall_module($module);
+      // Remove.
+      db_query("DELETE FROM {system} WHERE name = '%s'", $module);
+    }
+  }
+
+  $ret = array();
+  $ret[] = array(
+    'success' => TRUE,
+    'query' => 'Modules disabled & Uninstalled.',
+  );
+  return $ret;
+}
+
+/**
+ * Implements hook_update_N(). Copies Ad content into text area.
+ */
+function fs_upgrade_update_6002(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT nid) FROM {node} WHERE type = 'ad'"));
+  }
+
+  $limit = 20; // Update 20 nodes at a time.
+  $result = db_query_range("SELECT nid FROM {node} WHERE type = 'ad' AND nid > %d ORDER BY nid ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($nid = db_result($result)) {
+    // Load the node
+    $node = node_load($nid);
+
+    // Copy the Ad data into the new text field.
+    if (property_exists($node, 'adtype')) {
+      $node->field_ad_text['0']['value'] = $node->ad;
+      $node->field_ad_text['0']['format'] = '2'; // Full HTML code.
+    }
+    // Save the node.
+    node_save($node);
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $node->nid;
+  }
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+
+  if ($ret['#finished']) {
+
+    // Disable ad modules.
+    module_disable(array('ad_embed', 'ad_html', 'ad'));
+    // Uninstall ad modules.
+    drupal_uninstall_module('ad_embed');
+    drupal_uninstall_module('ad_html');
+    // drupal_uninstall_module('ad'); - STOP - This will delete the ad node type!
+    db_query("DELETE FROM {system} WHERE name = 'ad'"); // Do this instead.
+
+    // Convert ad content type to node module custom type.
+    db_query("UPDATE {node_type} SET module = 'node', custom = 1, locked = 0 WHERE type = 'ad'");
+
+    $ret[] = array(
+      'success' => TRUE,
+      'query' => 'Copied Ad content into text area.',
+    );
+  }
+
+  return $ret;
+}
+
+/**
+ * Implements hook_update_N(). Promote content previously flagged.
+ */
+function fs_upgrade_update_6003(&$sandbox) {
+  $ret = array();
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = 0;
+    $sandbox['current_nid'] = 0;
+    $sandbox['max'] = db_result(db_query("SELECT COUNT(DISTINCT content_id) FROM {flag_content}"));
+  }
+
+  $limit = 25; // Update 25 nodes at a time.
+  $result = db_query_range("SELECT DISTINCT(content_id) FROM {flag_content} WHERE content_id > %d ORDER BY content_id ASC", $sandbox['current_nid'], 0, $limit);
+
+  while ($records = db_fetch_array($result)) {
+    db_query("UPDATE {node} SET promote = 1 WHERE nid = %d", array('%d' => $records['content_id']));
+
+    $sandbox['progress']++;
+    $sandbox['current_nid'] = $records['content_id'];
+  }
+
+  $ret['#finished'] = empty($sandbox['max']) ? 1 : ($sandbox['progress'] / $sandbox['max']);
+
+  if ($ret['#finished']) {
+    module_disable(array('flag'));
+    drupal_uninstall_module('flag');
+
+    $ret[] = array(
+      'success' => TRUE,
+      'query' => 'Flagged content now promoted.',
+    );
+  }
+
+  return $ret;
+}
+
+/**
+ * Implements hook_update_N(). Other various quick updates.
+ */
+function fs_upgrade_update_6004(&$sandbox) {
+
+  // Delete the home page setting.
+  variable_del('site_frontpage');
+
+  // Theme configuration.
+  module_enable(array('garland'));
+  variable_set('theme_default', 'garland');
+  variable_del('theme_settings');
+  variable_del('theme_custom_settings');
+  variable_del('theme_acr_settings');
+  variable_del('theme_aderactive_settings');
+  variable_del('theme_admin_aderactive_settings');
+  variable_del('theme_admin_str_settings');
+  variable_del('theme_str_settings');
+  variable_del('theme_zen_settings');
+  variable_del('admin_theme');
+
+  // Cache configuration.
+  variable_set('cache', 0);
+  variable_set('block_cache', 0);
+  variable_set('preprocess_css', 0);
+  variable_set('preprocess_js', 0);
+
+  // Remove old disabled themes.
+  db_query("DELETE from {system} WHERE type = 'theme' AND status = 0");
+  // Remove old disabled modules.
+  db_query("DELETE from {system} WHERE type = 'module' AND status = 0");
+
+  $ret = array();
+  $ret[] = array(
+    'success' => TRUE,
+    'query' => 'Various quick updates completed.',
+  );
+  return $ret;
+}

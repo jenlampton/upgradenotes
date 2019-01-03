@@ -1,0 +1,69 @@
+<?php
+/**
+ * @file
+ * Install, Uninstall and Update hooks.
+ */
+
+/**
+ * Implements hook_update_N(). Enables new modules.
+ */
+function fs_upgrade_update_7000(&$sandbox) {
+  // Emable the things we want from Drupal 7.
+  $module_list = array(
+    'bartik',
+    'contextual',
+    'email',
+    'file',
+    'image',
+    'update',
+    'cck',
+    'content_migrate',
+    'field_group',
+    'redirect',
+    'metatag',
+    'metatag_importer',
+  );
+  module_enable($module_list, FALSE);
+
+  return t('Enabled new modules.');
+}
+
+/**
+ * Implements hook_update_N(). Enables bartik/seven themes. Disables and
+ * uninstalls unwanted modules.
+ */
+function fs_upgrade_update_7001(){
+
+  // Set theme settings.
+  variable_set('theme_default', 'bartik');
+  variable_set('admin_theme', 'seven');
+  variable_set('node_admin_theme', 1);
+
+  // Modules NOT needed for any Drupal 7 upgrade. DATA WILL BE DELETED.
+  $module_list = array(
+    1 => array(
+      'date_timezone',
+      'fieldgroup',
+      'filefield',
+      'imageapi',
+      'imageapi_gd',
+      'imagecache',
+      'magefield',
+      'nodewords',
+      'nodewords_basic',
+      'optionwidgets',
+      'page_title',
+    ),
+  );
+
+  foreach ($module_list as $set) {
+    // Delete.
+    db_delete('system')
+      ->condition('name', $set, 'IN')
+      ->condition('type', 'module')
+      ->execute();
+  }
+
+  return t('Enabled new themes, removed unwanted modules.');
+}
+

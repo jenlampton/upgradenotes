@@ -1,0 +1,5 @@
+name = FS Upgrader - Drupal 7
+description = Updates database for Backdrop CMS version of fashion-school.org site.
+package = Jeneration
+core = 7.x
+version = 7.x-1.0

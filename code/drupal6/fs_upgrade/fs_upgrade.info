@@ -1,0 +1,5 @@
+name = FS Upgrader - Drupal 6
+description = Updates database for Drupal 7 version of fashion-school.org site.
+package = Jeneration
+core = 6.x
+version = 6.x-1.0

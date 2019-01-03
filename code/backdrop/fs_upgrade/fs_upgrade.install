@@ -1,0 +1,74 @@
+<?php
+/**
+ * @file
+ * Install, Uninstall and Update hooks.
+ */
+
+/**
+ * Hook update N: Set filesystem. Udpate files in nodes. Replace imagecache URLs
+ * with Image Style URLs. Delete legacy database tables.
+ */
+function fs_upgrade_update_1001(){
+  // Enable custom theme.
+  update_module_enable(array('fs'));
+  config_set('system.core', 'theme_default', 'fs');
+  // Disable the bartik theme.
+  module_disable(array('bartik'));
+
+  // Update all metatag langcodes.
+  db_query("UPDATE {metatag} SET language = 'und' WHERE language = 'en'");
+
+  // Set filesystem back to sensible location.
+  config_set('system.core', 'file_public_path', 'files');
+  config_set('system.core', 'file_temporary_path', '/tmp');
+
+  // Replace files directory in embedded images.
+  // this /sites/fashion-schools.org/files/ => /files/
+  db_query("UPDATE {field_data_body} SET body_value = replace(body_value, '/sites/fashion-schools.org', '')");
+  db_query("UPDATE {field_data_body} SET body_summary = replace(body_value, '/sites/fashion-schools.org', '')");
+
+  // Replace imagecache with image styles.
+  // this /imagecache/full/ becomes this /styles/medium/public/
+  db_query("UPDATE {field_data_body} SET body_value = replace(body_value, 'imagecache/full', 'styles/medium/public')");
+  db_query("UPDATE {field_data_body} SET body_summary = replace(body_value, 'imagecache/full', 'styles/medium/public')");
+
+  // Remove old tables.
+  db_drop_table('access');
+  db_drop_table('ad_clicks');
+  db_drop_table('ad_statistics');
+  db_drop_table('ads');
+  db_drop_table('authmap');
+  db_drop_table('blocked_ips');
+  db_drop_table('cck_field_settings');
+  db_drop_table('content_field_image');
+  db_drop_table('content_field_images_inline');
+  db_drop_table('content_field_program');
+  db_drop_table('content_field_programs');
+  db_drop_table('content_field_school_logo');
+  db_drop_table('content_field_state');
+  db_drop_table('content_group');
+  db_drop_table('content_group_fields');
+  db_drop_table('content_node_field');
+  db_drop_table('content_node_field_instance');
+  db_drop_table('content_type_ad');
+  db_drop_table('content_type_article');
+  db_drop_table('content_type_career_profile');
+  db_drop_table('content_type_college');
+  db_drop_table('content_type_profile');
+  db_drop_table('content_type_ranking');
+  db_drop_table('content_type_school');
+  db_drop_table('content_type_trend');
+  db_drop_table('ctools_css_cache');
+  db_drop_table('ctools_object_cache');
+  db_drop_table('d6_upgrade_filter');
+  db_drop_table('field_config_instance');
+  db_drop_table('imagecache_action');
+  db_drop_table('imagecache_preset');
+  db_drop_table('nodewords');
+  db_drop_table('nodewords_custom');
+  db_drop_table('path_redirect');
+  db_drop_table('pathauto_state');
+  db_drop_table('views_object_cache');
+
+  return t('Themes, Files, and File System updated.');
+}
