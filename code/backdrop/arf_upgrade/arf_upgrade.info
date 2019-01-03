@@ -1,4 +1,4 @@
-name = ARF Upgrade - Backdrop
+name = ARF Upgrader - Backdrop
 description = Upgrade a Drupal 7 site to Backdrop CMS.
 package = Jeneration
 backdrop = 1.x

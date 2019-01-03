@@ -1,5 +1,5 @@
 type = module
-name = ACR Updates - BD
+name = ACR Upgrader - Backdrop
 description = Updates to the database to facilitate movintg to Backdrop.
 backdrop = 1.x
 

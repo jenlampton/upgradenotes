@@ -1,5 +1,5 @@
 type = module
-name = Bollier Updates - Backdrop CMS.
+name = Bollier Upgrader - Backdrop
 description = Updates to the database to facilitate movintg to Backdrop.
 backdrop = 1.x
 

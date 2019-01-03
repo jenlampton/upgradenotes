@@ -1,5 +1,5 @@
 type = module
-name = Updates for OMBAR.
+name = OMBAR Upgrader - Backdrop
 description = Update to Backdrop for BGP sites, by <a href="http://ww.jeneration.com">Jeneration</a>.
 package = Jeneration
 backdrop = 1.x

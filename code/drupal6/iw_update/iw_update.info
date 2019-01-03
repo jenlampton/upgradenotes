@@ -1,4 +1,4 @@
-name = IntoWine Updates - Drupal 6
+name = IntoWine Upgrader - Drupal 6
 description = Database updates for Intowine.com
 core = 6.x
 

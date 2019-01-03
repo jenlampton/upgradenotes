@@ -1,5 +1,5 @@
 type = module
-name = Bollier Updates - D6
+name = Bollier Upgrader - Drupal 6
 description = Updates to the database to facilitate movintg to Backdrop.
 core = 6.x
 

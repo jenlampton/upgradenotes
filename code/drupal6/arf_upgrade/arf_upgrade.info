@@ -1,4 +1,4 @@
-name = ARF Upgrade - Six
+name = ARF Upgrader - Drupal 6
 description = Prepare to upgrade a Drupal 6 site to Drupal 7.
 package = Jeneration
 core = 6.x
