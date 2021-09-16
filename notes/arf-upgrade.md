@@ -1,5 +1,7 @@
 Upgrade notes for arf.berkeley.edu, a Drupal 6 => Backdrop CMS upgrade.
 
+**Upgrade accomplished: Feb 5th, 2018**
+
 
 Drupal 6
 ==========

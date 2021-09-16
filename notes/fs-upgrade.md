@@ -1,3 +1,8 @@
+Upgrade notes for fashion-schools.org, a Drupal 6 => Backdrop CMS upgrade.
+
+**Upgrade accomplished: July 20th, 2020**
+
+
 # PREPARE Drupal 6 Database
 ===============================================================================
 

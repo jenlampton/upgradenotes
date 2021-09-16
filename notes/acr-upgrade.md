@@ -1,5 +1,6 @@
 Upgrade notes for annimationcareerreview.com, a Drupal 6 => Backdrop CMS upgrade.
 
+**Upgrade accomplished: August 30th, 2017**
 
 # Drupal 6
 ===============================================================================

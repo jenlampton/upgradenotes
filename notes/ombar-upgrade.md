@@ -1,5 +1,7 @@
 Upgrade notes for onlinembareport.com, a Drupal 7 => Backdrop CMS upgrade.
 
+**Upgrade accomplished: March 25th, 2017**
+
 ===============================================================================
 Drupal 7 site:
 ===============================================================================

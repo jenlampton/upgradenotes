@@ -1,5 +1,7 @@
 Upgrade notes for intowine.com, a Drupal 6 => Backdrop CMS upgrade.
 
+**Upgrade accomplished: March 26th, 2018**
+
 Drupal 6
 ===============================================================================
 
