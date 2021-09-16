@@ -1,6 +1,6 @@
 Upgrade notes for bollier.org, a Drupal 6 => Backdrop CMS upgrade.
 
-**Upgrade accomplished: Dec 7th, 2018**
+**Upgrade accomplished: May 5th, 2017**
 
 ===============================================================================
 Drupal 6

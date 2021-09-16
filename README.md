@@ -21,36 +21,47 @@ n the "code" directory.
 
 ## Sites upgraded to Backdrop
 
-- onlinembareport.com (Drupal 7 to Backdrop Upgrade)
-	- [Notes](notes/ombar-upgrade.md)
-	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/ombarupdate)
+- fashion-schools.org (Drupal 7 to Backdrop Upgrade)- July 20th, 2020
+	- [Notes](notes/fs-upgrade.md)
 
-- bollier.org (Drupal 6 to Backdrop Upgrade)
-	- [Notes](notes/bollier-upgrade.md)
-	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/bupdate)
-	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/bupdate)
-	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/bupdate)
+- arf.berkley.edu (Drupal 6 to Backdrop Upgrade) - Dec 7th, 2018**
+	- [Notes](notes/arf-upgrade.md)
+	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/arf_upgrade)
+	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/arf_upgrade)
+	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/arf_upgrade)
 
-- animationcareerreview.com (Drupal 6 to Backdrop Upgrade)
-	- [Notes](notes/acr-upgrade.md)
-	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/acrupdate)
-	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/acrupdate)
-	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/acrupdate)
+- noreciperequired.com (Drupal 7 to Backdrop Upgrade) - April 8th, 2018
+	- [Notes](notes/nrr-upgrade.md)
 
-- intowine.com (Drupal 6 to Backdrop Upgrade)
+- intowine.com (Drupal 6 to Backdrop Upgrade) - March 26th, 2018
 	- [Notes](notes/iw-upgrade.md)
 	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/iw_update)
 	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/iw_update)
 	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/iw_update)
 	- [Script](scripts/iw-upgrade.sh)
 
-- arf.berkley.edu (Drupal 6 to Backdrop Upgrade)
-	- [Notes](notes/arf-upgrade.md)
-	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/arf_upgrade)
-	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/arf_upgrade)
-	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/arf_upgrade)
+- animationcareerreview.com (Drupal 6 to Backdrop Upgrade) - August 30th, 2017
+	- [Notes](notes/acr-upgrade.md)
+	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/acrupdate)
+	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/acrupdate)
+	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/acrupdate)
+
+- bollier.org (Drupal 6 to Backdrop Upgrade) - May 5th, 2017
+	- [Notes](notes/bollier-upgrade.md)
+	- [Drupal 6 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal6/bupdate)
+	- [Drupal 7 module](https://github.com/jenlampton/upgradenotes/tree/master/code/drupal7/bupdate)
+	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/bupdate)
+
+- onlinembareport.com (Drupal 7 to Backdrop Upgrade) - March 25th, 2017
+	- [Notes](notes/ombar-upgrade.md)
+	- [Backdrop module](https://github.com/jenlampton/upgradenotes/tree/master/code/backdrop/ombarupdate)
+
+- bootfitters.com (Drupal 6 to Backdrop Upgrade) - Aug 25th, 2015
+	- Notes (missing?)
+
 
 
 ## To do
 
-I am fully intending to turn each markdown file into an actual script to be run from the command line. But first things first: documentation!
+I intend to turn information from these markdown files into an actual script to
+be run from the command line. But first things first: documentation!
