@@ -5,7 +5,7 @@
  */
 
 /**
- * Implements hook_update_N(). Enables new modules. Doesn't work, dunno why.
+ * Implements hook_update_N(). Shoudl enable new modules but doesn't work.
  */
 function arf_upgrade_update_1000(&$sandbox) {
   // Emable the things we want from Drupal 7.
@@ -23,21 +23,458 @@ function arf_upgrade_update_1000(&$sandbox) {
  * Implements hook_update_N(). Cleans up the managed file table and files dir.
  */
 function arf_upgrade_update_1001(&$sandbox) {
+  // Change the files location.
+  config_set('system.core', 'file_public_path', 'files');
+
   // UPDATE file_managed SET uri = REPLACE(uri, 'public://[termpath-raw]', 'public://termpath-raw');
   db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://[termpath-raw]', 'public://termpath-raw')");
   // UPDATE file_managed SET uri = REPLACE(uri, 'public://image/', 'public://images/');
   db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://image/', 'public://images/')");
   // UPDATE file_managed SET uri = REPLACE(uri, 'public://arf_pubs/[title-raw]/', 'public://arf_pubs/');
   db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://arf_pubs/[title-raw]', 'public://arf_pubs/title-raw');");
-  // UPDATE file_managed SET uri = REPLACE(uri, 'public://webfiles/all/project/[bookpath]', 'public://webfiles/all/project/bookpath');
-  db_query("UPDATE {file_managed} SET uri = REPLACE(uri, 'public://webfiles/all/project/[bookpath]', 'public://arf_pubs/title-raw');");
 }
-
 
 /**
  * Implements hook_update_N(). Converts photo field from file to image.
-
+ */
 function arf_upgrade_update_1002(&$sandbox) {
-
+  // @see arf_upgrade_update_1004().
 }
-*/
+
+/**
+ * Implements hook_update_N(). All content in "Front page news" category should be promoted instead.
+ */
+function arf_upgrade_update_1003() {
+  // Get all nids of "Front page news" posts.
+  $promoted = db_query("SELECT entity_id FROM {field_data_taxonomy_vocabulary_2} WHERE taxonomy_vocabulary_2_tid = 136")->fetchCol();
+  // Update the node table.
+  db_query("UPDATE {node} SET promote = 1 WHERE nid IN (:nids)", array(':nids' => $promoted));
+
+  // Some book nodes should be pages.
+  $pages = array('34', '35', '89', '90', '101', '102', '103', '200', '248', '432');
+  db_query("UPDATE {node} SET type = 'page' WHERE nid IN (:nids)", array(':nids' => $pages));
+
+  // Some news nodes should be reports.
+  $reports = db_query("SELECT entity_id FROM {field_data_taxonomy_vocabulary_2} WHERE taxonomy_vocabulary_2_tid = 185")->fetchCol();
+  db_query("UPDATE {node} SET type = 'report' WHERE nid IN (:nids)", array(':nids' => $reports));
+
+  return t('Front page news items are promoted, books converted to pages, reports created.');
+}
+
+/**
+ * Implements hook_update_N(). Converts photo field from file to image.
+ */
+function arf_upgrade_update_1004(&$sandbox) {
+  // Update the field type.
+  $field_config = config('field.field.field_photo');
+  $field_config->set('type', 'image');
+  $field_config->set('module', 'image');
+  $field_config->set('settings', array(
+    'uri_scheme' => 'public',
+    'default_image' => '',
+  ));
+  $field_config->save();
+
+  // Update the field instance widgets.
+  $instance_configs = array(
+    'field.instance.node.profile.field_photo',
+    'field.instance.node.report.field_photo',
+    'field.instance.node.research.field_photo',
+    'field.instance.node.story.field_photo',
+  );
+  $widget = array(
+    'type' => 'image_image',
+    'module' => 'image',
+    'active' => TRUE,
+    'settings' => array('preview_image_style' => 'thumbnail'),
+  );
+  foreach ($instance_configs as $name) {
+    $config = config($name);
+    $config->set('widget', $widget);
+    $config->save();
+  }
+
+  // Remove the file field database columns.
+  db_drop_field('field_data_field_photo', 'field_photo_display');
+  db_drop_field('field_data_field_photo', 'field_photo_description');
+  db_drop_field('field_revision_field_photo', 'field_photo_display');
+  db_drop_field('field_revision_field_photo', 'field_photo_description');
+
+  // Define the image field database columns.
+  $field_screenshot_alt_schema = array(
+    'type' => 'varchar',
+    'length' => 512,
+    'not null' => FALSE,
+    'description' => "Alternative image text, for the image's 'alt' attribute.",
+    'translatable' => TRUE,
+  );
+  $field_screenshot_title_schema = array(
+    'type' => 'varchar',
+    'length' => 1024,
+    'not null' => FALSE,
+    'description' => "Image title text, for the image's 'title' attribute.",
+    'translatable' => TRUE,
+  );
+  $field_screenshot_width_schema = array(
+    'description' => 'The width of the image in pixels.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+  );
+  $field_screenshot_height_schema = array(
+    'description' => 'The height of the image in pixels.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+  );
+
+  // Add the image field database columns.
+  db_add_field('field_data_field_photo', 'field_photo_alt', $field_screenshot_alt_schema);
+  db_add_field('field_data_field_photo', 'field_photo_title', $field_screenshot_title_schema);
+  db_add_field('field_data_field_photo', 'field_photo_width', $field_screenshot_width_schema);
+  db_add_field('field_data_field_photo', 'field_photo_height', $field_screenshot_height_schema);
+  // Add the image field revision database columns.
+  db_add_field('field_revision_field_photo', 'field_photo_alt', $field_screenshot_alt_schema);
+  db_add_field('field_revision_field_photo', 'field_photo_title', $field_screenshot_title_schema);
+  db_add_field('field_revision_field_photo', 'field_photo_width', $field_screenshot_width_schema);
+  db_add_field('field_revision_field_photo', 'field_photo_height', $field_screenshot_height_schema);
+
+  return t('Converted photo field from file to image.');
+}
+
+/**
+ * Implements hook_update_N(). Relative link and image paths updated in bodies.
+ */
+function arf_upgrade_update_1005() {
+  // Replaces 'http://arf.com/' with '/' in node bodies.
+  db_query("UPDATE {field_data_body} SET body_value = REPLACE(body_value, 'http://arf.com/', '/')");
+  // Replaces '/sites/default/files/' with '/files/' in node bodies.
+  db_query("UPDATE {field_data_body} SET body_value = REPLACE(body_value, '/sites/default/files/', '/files/')");
+
+  return t('Node bodies updated for relative images and relative links.');
+}
+
+/**
+ * Implements hook_update_N(). Updates embedded images to use data attributes.
+ */
+function arf_upgrade_update_1006(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 1;
+    // Get the count by counting values in the field table.
+    $sandbox['max'] = db_query("SELECT COUNT(body_value) FROM {field_data_body} WHERE body_value LIKE '%<img%'")->fetchField();
+  }
+
+  // Get all the values from the body table.
+  $limit = 30;
+  $result  = db_query_range("SELECT body_value, body_summary, entity_id, revision_id, delta FROM {field_data_body} WHERE body_value LIKE '%<img%' AND entity_id > :nid ORDER BY entity_id", 0, $limit, array(':nid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+
+    // Search for embedded images.
+    if (strstr($record->body_value, '<img')) {
+      $body_updated = $record->body_value;
+
+      // Parse the body for image tags.
+      $dom = new DOMDocument('1.0', 'UTF-8');
+      @$dom->loadHTML('<?xml version="1.0" encoding="UTF-8"?>' . $record->body_value);
+
+      $tags = $dom->getElementsByTagName('img');
+      foreach ($tags as $image) {
+
+        // Update images.
+        $style = str_replace(' ', '', $image->getAttribute('style'));
+        if (!empty($style) && strstr($style, 'float:right')) {
+          $image->removeAttribute('style');
+          $image->setAttribute('data-align', 'right');
+        }
+        elseif (!empty($style) && strstr($style, 'float:left')) {
+          $image->removeAttribute('style');
+          $image->setAttribute('data-align', 'left');
+        }
+      }
+
+      // Export HTML for the body.
+      $body_updated = '';
+      $body = $dom->getElementsByTagName('body')->item(0);
+      foreach ($body->childNodes as $child) {
+        $body_updated .= $dom->saveHTML($child);
+      }
+
+      if ($body_updated != $record->body_value) {
+        // Update database.
+        db_query("UPDATE {field_data_body} SET body_value = :new, body_format = '1' WHERE entity_id = :eid AND revision_id = :rid AND delta = :delta",
+          array(':new' => $body_updated, 'eid' => $record->entity_id, ':rid' => $record->revision_id, ':delta' => $record->delta));
+      }
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->entity_id;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    $return = t("Images updated to data attributes.");
+    return $return;
+  }
+}
+
+/**
+ * Implements hook_update_N(). Fixes conversion from file field to image field.
+ */
+function arf_upgrade_update_1007(&$sandbox) {
+  // Set all text formats to Standard.
+  db_query("UPDATE {field_data_body} SET body_format = 1");
+  db_query("UPDATE {field_data_comment_body} SET comment_body_format = 1");
+  db_query("UPDATE {field_data_field_int_notes} SET field_int_notes_format = 1");
+
+  // Now for photo field...
+  db_query("ALTER TABLE {field_data_field_photo} CHANGE field_screenshot_alt field_photo_alt varchar(512)");
+  db_query("ALTER TABLE {field_data_field_photo} CHANGE field_screenshot_title field_photo_title varchar(1024)");
+  db_query("ALTER TABLE {field_data_field_photo} CHANGE field_screenshot_width field_photo_width int(10) unsigned");
+  db_query("ALTER TABLE {field_data_field_photo} CHANGE field_screenshot_height field_photo_height int(10) unsigned");
+
+  // Remove the file field database columns.
+  db_drop_field('field_revision_field_photo', 'field_photo_display');
+  db_drop_field('field_revision_field_photo', 'field_photo_description');
+
+  // Define the image field database columns.
+  $field_screenshot_alt_schema = array(
+    'type' => 'varchar',
+    'length' => 512,
+    'not null' => FALSE,
+    'description' => "Alternative image text, for the image's 'alt' attribute.",
+    'translatable' => TRUE,
+  );
+  $field_screenshot_title_schema = array(
+    'type' => 'varchar',
+    'length' => 1024,
+    'not null' => FALSE,
+    'description' => "Image title text, for the image's 'title' attribute.",
+    'translatable' => TRUE,
+  );
+  $field_screenshot_width_schema = array(
+    'description' => 'The width of the image in pixels.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+  );
+  $field_screenshot_height_schema = array(
+    'description' => 'The height of the image in pixels.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+  );
+
+  // Add the image field database columns.
+  db_add_field('field_revision_field_photo', 'field_photo_alt', $field_screenshot_alt_schema);
+  db_add_field('field_revision_field_photo', 'field_photo_title', $field_screenshot_title_schema);
+  db_add_field('field_revision_field_photo', 'field_photo_width', $field_screenshot_width_schema);
+  db_add_field('field_revision_field_photo', 'field_photo_height', $field_screenshot_height_schema);
+
+  $return = t("Photo data and revision tables fixed.");
+  return $return;
+}
+
+/**
+ * Implements hook_update_N(). Move webFM files into file_managed table.
+ */
+function arf_upgrade_update_1008(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 1;
+    // Get the count by counting values in the field table.
+    $sandbox['max'] = db_query("SELECT COUNT(fid) FROM {webfm_attach}")->fetchField();
+  }
+
+  // Get all the values from the body table.
+  $limit = 25;
+  // SELECT wa.nid, wa.fid, wa.weight, wa.cid, wf.uid, wf.fpath, wf.fsize, wf.fmime, wf.fdesc, wf.fcreatedate, wf.flang FROM webfm_attach wa INNER JOIN webfm_file wf ON wa.fid = wf.fid ORDER BY wa.nid LIMIT 50
+  $result  = db_query_range("SELECT wa.nid, wa.fid, wa.weight, wa.cid, wf.uid, wf.fpath, wf.fsize, wf.fmime, wf.ftitle, wf.fdesc, wf.fcreatedate, wf.flang
+    FROM {webfm_attach} wa INNER JOIN {webfm_file} wf ON wa.fid = wf.fid
+    WHERE wa.nid > :nid
+    ORDER BY wa.nid ASC, wa.fid ASC", 0, $limit, array(':nid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+    // Load and save the node where this file should be attached.
+    $node = node_load($record->nid, NULL, TRUE);
+    $lang = $node->langcode;
+
+    if ($node) {
+      // Get the delta...
+      $delta = 0;
+      if (isset($node->field_attachments[$lang])) {
+        $delta = count($node->field_attachments[$lang]);
+        if (empty($node->field_attachments[$lang][0])) {
+          $node->field_attachments[$lang] = array();
+          $delta = 0;
+        }
+      }
+
+      // Check and see if we already have the file...
+      $path = str_replace('sites/default/files/', 'public://', $record->fpath);
+      $path_parts = explode('/', $record->fpath);
+      $last_part = trim(array_pop($path_parts));
+      $filename = str_replace(' ', '_', $last_part);
+
+      $fid = db_query("SELECT fid FROM {file_managed} WHERE uri = :fpath", array(':fpath' => $path))->fetchField();
+
+      if (!$fid) {
+        $file = new File(array(
+          //'fid' => $record->fid, // This is the wrong FID.
+          'langcode' => $record->flang,
+          'uid' => $record->uid,
+          'filename' => $filename,
+          'uri' => $path,
+          'filemime' => $record->fmime,
+          'filesize' => $record->fsize,
+          'status' => '1',
+          'timestamp' => $record->fcreatedate,
+          'display' => '1',
+          'description' => $record->fdesc,
+        ));
+        $status = $file->save();
+
+        $fid = db_query("SELECT fid FROM {file_managed} WHERE uri = :fpath", array(':fpath' => $path))->fetchField();
+      }
+      else {
+        $file = file_load($fid);
+        if ($file->filename == '') {
+          $file->filename = $filename;
+          $status = $file->save();
+        }
+      }
+
+      $node->field_attachments[$node->langcode][$delta] = array(
+        'fid' => $fid,
+        'filename' => $filename,
+        'display' => 1,
+        'description' => '',
+      );
+      $node->save();
+    }
+    else {
+      db_query("DELETE from {webfm_attach} where nid = :nid", array(':nid' => $record->nid));
+    }
+
+    // Check to see if there are any more files for this node...
+    $last = $record->nid;
+    $exists = db_query("SELECT fid from {webfm_attach} WHERE nid = :nid", array(':nid' => $last))->fetchField();
+    if ($exists) {
+      $last--;
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $last;
+  }
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    //db_drop_table('webfm_attach');
+    //db_drop_table('webfm_file');
+
+    $return = t("WebFM files moved to file_managed table.");
+    return $return;
+  }
+}
+
+/**
+ * Implements hook_update_N(). Change content types. Cleanup webfm_files table.
+ */
+function arf_upgrade_update_1009() {
+  // Updates a node to a different type.
+  db_query("UPDATE {node} SET type = 'page' WHERE nid = 419");
+
+  // replace thickbox with colorbox.
+  db_query("UPDATE {field_data_body} SET body_value = REPLACE(body_value, 'thickbox', 'colorbox')");
+
+  // Update webfm_file table.
+  db_query("UPDATE {webfm_file} SET fpath = REPLACE(fpath, 'sites/default/files/', 'files/')");
+
+  return t('Stahal Feield Reports page converted from a SFR to a Page');
+}
+
+/**
+ * Implements hook_update_N(). Update URLs to WebFM files linked in content.
+ */
+function arf_upgrade_update_1010(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    // Initialize batch update information.
+    $sandbox['progress'] = 0;
+    $sandbox['last_processed'] = 0;
+    // Get the count by counting values in the field table.
+    $sandbox['max'] = db_query("SELECT COUNT(body_value) FROM {field_data_body} WHERE body_value LIKE '%/webfm_send/%'")->fetchField();
+  }
+
+  $limit = 25;
+  $result  = db_query_range("SELECT body_value, body_summary, entity_id, revision_id, delta
+    FROM {field_data_body}
+    WHERE body_value LIKE '%/webfm_send/%' AND entity_id > :eid
+    ORDER BY entity_id", 0, $limit, array(':eid' => $sandbox['last_processed']));
+
+  foreach ($result as $record) {
+    $body_updated = $record->body_value;
+    $sum_updated = $record->body_summary;
+    $updated = FALSE;
+
+    $parts = explode('/webfm_send/', $body_updated);
+    $trash = array_shift($parts); // Throw out the first item.
+
+    foreach ($parts as $string) {
+      $sub_parts = explode('/', $string);
+      $array = str_split($sub_parts[0]); // Check only the first.
+      $fid = '';
+
+      foreach ($array as $char) {
+        if (is_numeric($char)) {
+          $fid .= $char;
+        }
+        else {
+          continue;
+        }
+      }
+
+      // Only query if necessary.
+      if (!empty($fid)) {
+        $new_path = db_query("SELECT fpath FROM {webfm_file} WHERE fid = :fid", array(':fid' => $fid))->fetchField();
+        $body_updated = str_replace('webfm_send/' . $fid, $new_path, $body_updated);
+        $sum_updated = str_replace('webfm_send/' . $fid, $new_path, $sum_updated);
+        $updated = TRUE;
+      }
+    }
+
+    // Only query if necessary.
+    if ($updated) {
+      db_query("UPDATE {field_data_body} SET body_value = :new WHERE entity_id = :eid AND revision_id = :rid AND delta = :delta",
+        array(':new' => $body_updated, 'eid' => $record->entity_id, ':rid' => $record->revision_id, ':delta' => $record->delta));
+    }
+
+    // Update our progress information for the batch update.
+    $sandbox['progress']++;
+    $sandbox['last_processed'] = $record->entity_id;
+  }
+
+
+  // Indicate our current progress to the batch update system. If there's no
+  // max value then there's nothing to update and we're finished.
+  $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
+
+  if ($sandbox['#finished'] >= 1) {
+    $return = t('URLs to WebFM files updated in content.');
+    return $return;
+  }
+}
+
+/**
+ * Implements hook_update_N(). Switch unpublished project nodes to research.
+ */
+function arf_upgrade_update_1011(&$sandbox) {
+  db_query("UPDATE {node} SET type = 'research' WHERE type = 'project' AND status = 0");
+  return t('Unpublished projects are now research.');
+}
