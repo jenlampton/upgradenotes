@@ -98,8 +98,8 @@ function acrupdate_update_1001(&$sandbox) {
  */
 function acrupdate_update_1002() {
   // Update all body content to use Basic text format instead of PHP or WYSIWYG.
-  db_query("UPDATE {field_data_body} SET body_format = '1' WHERE body_format = '5'");
   db_query("UPDATE {field_data_body} SET body_format = '1' WHERE body_format = '3'");
+  db_query("UPDATE {field_data_body} SET body_format = '1' WHERE body_format = '5'");
   // Update all ad text to use Basic
   db_query("UPDATE {field_data_field_ad_text} SET field_ad_text_format = '1'");
 }

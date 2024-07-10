@@ -248,6 +248,8 @@ function iw_update_update_7002(&$sandbox) {
     );
     field_create_instance($phone_instance);
   }
+
+  return t('Created an address field.');
 }
 
 /**
@@ -285,7 +287,7 @@ function iw_update_update_7003(&$sandbox) {
   $sandbox['#finished'] = $sandbox['progress'] / $sandbox['max'];
 
   if ($sandbox['#finished'] >= 1) {
-    return t('Added a new field for address. Migrated in Location data.');
+    return t('Copied Phone data into Telephone field.');
   }
 }
 

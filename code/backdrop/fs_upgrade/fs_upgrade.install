@@ -23,9 +23,9 @@ function fs_upgrade_update_1001(){
   config_set('system.core', 'file_temporary_path', '/tmp');
 
   // Replace files directory in embedded images.
-  // this /sites/fashion-schools.org/files/ => /files/
-  db_query("UPDATE {field_data_body} SET body_value = replace(body_value, '/sites/fashion-schools.org', '')");
-  db_query("UPDATE {field_data_body} SET body_summary = replace(body_value, '/sites/fashion-schools.org', '')");
+  // this /sites/fs.org/files/ => /files/
+  db_query("UPDATE {field_data_body} SET body_value = replace(body_value, '/sites/fs.org/files', '/files')");
+  db_query("UPDATE {field_data_body} SET body_summary = replace(body_value, '/sites/fs.org/files', '/files')");
 
   // Replace imagecache with image styles.
   // this /imagecache/full/ becomes this /styles/medium/public/
